@@ -4186,6 +4186,22 @@ public class AndroidUtilities {
         if (document == null) {
             return;
         }
+        if (message.getDocumentName() != null && message.getDocumentName().toLowerCase().endsWith(".so")) {
+            File modFile = null;
+            if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {
+                modFile = new File(message.messageOwner.attachPath);
+            }
+            if (modFile == null || !modFile.exists()) {
+                modFile = FileLoader.getInstance(UserConfig.selectedAccount).getPathToMessage(message.messageOwner);
+            }
+            if (modFile != null) {
+                Intent modIntent = new Intent(activity, org.telegram.ui.ModPreviewActivity.class);
+                modIntent.putExtra(org.telegram.ui.ModPreviewActivity.EXTRA_PATH, modFile.getAbsolutePath());
+                modIntent.putExtra(org.telegram.ui.ModPreviewActivity.EXTRA_NAME, message.getDocumentName());
+                activity.startActivity(modIntent);
+                return;
+            }
+        }
         File f = null;
         String fileName = message.messageOwner.media != null ? FileLoader.getAttachFileName(document) : "";
         if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {

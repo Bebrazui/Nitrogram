@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.ModConfig;
+import org.telegram.messenger.ModManager;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -24,6 +25,8 @@ import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.ActionBar.AlertDialog;
+import java.util.List;
 
 public class ModSettingsActivity extends BaseFragment {
 
@@ -38,6 +41,9 @@ public class ModSettingsActivity extends BaseFragment {
     private int networkHeaderRow;
     private int proxyRow;
     private int proxyInfoRow;
+    private int modsHeaderRow;
+    private int installedModsRow;
+    private int modsInfoRow;
 
     private static final int VIEW_TYPE_CHECK = 0;
     private static final int VIEW_TYPE_INFO = 1;
@@ -53,6 +59,9 @@ public class ModSettingsActivity extends BaseFragment {
         networkHeaderRow = rowCount++;
         proxyRow = rowCount++;
         proxyInfoRow = rowCount++;
+        modsHeaderRow = rowCount++;
+        installedModsRow = rowCount++;
+        modsInfoRow = rowCount++;
     }
 
     @Override
@@ -98,6 +107,8 @@ public class ModSettingsActivity extends BaseFragment {
                 ((TextCheckCell) view).setChecked(v);
             } else if (position == proxyRow) {
                 presentFragment(new WsProxySettingsActivity());
+            } else if (position == installedModsRow) {
+                showInstalledMods();
             }
         });
 
@@ -120,7 +131,7 @@ public class ModSettingsActivity extends BaseFragment {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
-            return position == blockSponsoredRow || position == blockHashtagRow || position == proxyRow;
+            return position == blockSponsoredRow || position == blockHashtagRow || position == proxyRow || position == installedModsRow;
         }
 
         @Override
@@ -129,7 +140,7 @@ public class ModSettingsActivity extends BaseFragment {
                 return VIEW_TYPE_CHECK;
             } else if (position == adsInfoRow || position == proxyInfoRow) {
                 return VIEW_TYPE_INFO;
-            } else if (position == adsHeaderRow || position == networkHeaderRow) {
+            } else if (position == adsHeaderRow || position == networkHeaderRow || position == modsHeaderRow) {
                 return VIEW_TYPE_HEADER;
             }
             return VIEW_TYPE_SETTING;
@@ -178,6 +189,8 @@ public class ModSettingsActivity extends BaseFragment {
                         cell.setText("Ad blocking");
                     } else if (position == networkHeaderRow) {
                         cell.setText("Network");
+                    } else if (position == modsHeaderRow) {
+                        cell.setText("Mods");
                     }
                     break;
                 }
@@ -185,6 +198,8 @@ public class ModSettingsActivity extends BaseFragment {
                     TextSettingsCell cell = (TextSettingsCell) holder.itemView;
                     if (position == proxyRow) {
                         cell.setText("WS Proxy", false);
+                    } else if (position == installedModsRow) {
+                        cell.setText("Установленные моды (" + ModManager.getInstalledMods().size() + ")", false);
                     }
                     break;
                 }
@@ -194,10 +209,30 @@ public class ModSettingsActivity extends BaseFragment {
                         cell.setText("Hides Telegram's official sponsored messages and channel posts tagged with #реклама or #ad.");
                     } else if (position == proxyInfoRow) {
                         cell.setText("Built-in WebSocket proxy settings.");
+                    } else if (position == modsInfoRow) {
+                        cell.setText("Список загруженных .so модов. Установка выполняется через .so файл, отправленный в чате.");
                     }
                     break;
                 }
             }
         }
+    }
+
+    private void showInstalledMods() {
+        List<ModManager.ModMeta> mods = ModManager.getInstalledMods();
+        StringBuilder sb = new StringBuilder();
+        if (mods.isEmpty()) {
+            sb.append("Нет установленных модов.");
+        } else {
+            for (ModManager.ModMeta m : mods) {
+                sb.append("• ").append(m.name).append(" v").append(m.version)
+                        .append(m.loaded ? " (загружен)" : " (не загружен)").append("\n");
+            }
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Установленные моды");
+        builder.setMessage(sb.toString().trim());
+        builder.setPositiveButton("OK", null);
+        showDialog(builder.create());
     }
 }
