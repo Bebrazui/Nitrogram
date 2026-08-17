@@ -1,0 +1,6 @@
+# Сгенерированные артефакты сборки модов (регенерируются через build.bat)
+dexout/
+dexbuild/
+classes.jar
+dex_payload.h
+*.so
