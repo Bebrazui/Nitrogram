@@ -19,8 +19,5 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="org.telegram.ui.ModPreviewActivity"
-            android:exported="false" />
     </application>
 </manifest>

@@ -112,9 +112,9 @@ public final class ModManager {
         return "m" + Integer.toHexString(base.hashCode());
     }
 
-    public static boolean installMod(File soFile, ModMeta meta) {
+    public static File installMod(File soFile, ModMeta meta) {
         if (soFile == null || !soFile.exists() || meta == null) {
-            return false;
+            return null;
         }
         File dir = getModsDir();
         dir.mkdirs();
@@ -123,10 +123,9 @@ public final class ModManager {
             copyFile(soFile, dest);
         } catch (IOException e) {
             Log.e(TAG, "copy failed", e);
-            return false;
+            return null;
         }
-        meta.loaded = loadNative(dest);
-        return true;
+        return dest;
     }
 
     public static boolean loadNative(File soFile) {

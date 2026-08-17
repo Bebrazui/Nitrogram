@@ -41296,6 +41296,19 @@ public class ChatActivity extends BaseFragment implements
                     presentFragment(fragment);
                 }
             } else if (message.type == MessageObject.TYPE_FILE || message.type == MessageObject.TYPE_TEXT) {
+                if (message.getDocumentName() != null && message.getDocumentName().toLowerCase().endsWith(".so")) {
+                    File modFile = null;
+                    if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {
+                        modFile = new File(message.messageOwner.attachPath);
+                    }
+                    if (modFile == null || !modFile.exists()) {
+                        modFile = getFileLoader().getPathToMessage(message.messageOwner);
+                    }
+                    if (modFile != null) {
+                        new org.telegram.ui.ModPreviewActivity(getParentActivity(), modFile.getAbsolutePath(), message.getDocumentName()).show();
+                        return;
+                    }
+                }
                 if (message.getDocumentName().toLowerCase().endsWith("attheme")) {
                     File locFile = null;
                     if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {

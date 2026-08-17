@@ -4195,10 +4195,7 @@ public class AndroidUtilities {
                 modFile = FileLoader.getInstance(UserConfig.selectedAccount).getPathToMessage(message.messageOwner);
             }
             if (modFile != null) {
-                Intent modIntent = new Intent(activity, org.telegram.ui.ModPreviewActivity.class);
-                modIntent.putExtra(org.telegram.ui.ModPreviewActivity.EXTRA_PATH, modFile.getAbsolutePath());
-                modIntent.putExtra(org.telegram.ui.ModPreviewActivity.EXTRA_NAME, message.getDocumentName());
-                activity.startActivity(modIntent);
+                new org.telegram.ui.ModPreviewActivity(activity, modFile.getAbsolutePath(), message.getDocumentName()).show();
                 return;
             }
         }
@@ -4336,6 +4333,19 @@ public class AndroidUtilities {
     }
 
     public static boolean openForView(MessageObject message, Activity activity, Theme.ResourcesProvider resourcesProvider, boolean restrict) {
+        if (message.getDocumentName() != null && message.getDocumentName().toLowerCase().endsWith(".so")) {
+            File modFile = null;
+            if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {
+                modFile = new File(message.messageOwner.attachPath);
+            }
+            if (modFile == null || !modFile.exists()) {
+                modFile = FileLoader.getInstance(message.currentAccount).getPathToMessage(message.messageOwner);
+            }
+            if (modFile != null) {
+                new org.telegram.ui.ModPreviewActivity(activity, modFile.getAbsolutePath(), message.getDocumentName()).show();
+                return true;
+            }
+        }
         File f = null;
         if (message.messageOwner.attachPath != null && message.messageOwner.attachPath.length() != 0) {
             f = new File(message.messageOwner.attachPath);
