@@ -1,6 +1,8 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.util.Log;
+import android.graphics.PorterDuff;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -15,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ModManager;
+import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -93,11 +96,31 @@ public class InstalledModsActivity extends BaseFragment {
         if (checked) {
             File f = ModManager.getModFile(m.id);
             ModManager.loadNative(f);
+            ModManager.registerLoadedMod(m.id);
             m.loaded = true;
+            m.hasSettings = ModManager.hasSettings(m.id);
+            listAdapter.notifyDataSetChanged();
             Toast.makeText(getParentActivity(), "Мод включён.", Toast.LENGTH_SHORT).show();
         } else {
             Toast.makeText(getParentActivity(), "Мод отключён. Изменения применятся после перезапуска.", Toast.LENGTH_LONG).show();
         }
+    }
+
+    void onOpenSettings(ModManager.ModMeta m) {
+        Log.i("NitroMod", "onOpenSettings " + m.id + " hasSettings=" + m.hasSettings + " " + ModManager.debugState());
+        if (!ModManager.isModRegistered(m.id)) {
+            ModManager.loadNative(ModManager.getModFile(m.id));
+            ModManager.registerLoadedMod(m.id);
+        }
+        Object screen = ModManager.getSettingsScreen(m.id);
+        Log.i("NitroMod", "onOpenSettings screen=" + (screen != null ? screen.getClass().getName() : "null"));
+        if (screen == null) {
+            Toast.makeText(getParentActivity(), "У этого мода нет экран настроек.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ModDetailSettingsActivity f = new ModDetailSettingsActivity();
+        f.setMod(m);
+        presentFragment(f);
     }
 
     void onDelete(ModManager.ModMeta m) {
@@ -122,6 +145,7 @@ public class InstalledModsActivity extends BaseFragment {
         TextView status;
         TextView deleteBtn;
         Switch sw;
+        ImageView settingsBtn;
         ModManager.ModMeta meta;
 
         public ModCard(Context context) {
@@ -183,6 +207,16 @@ public class InstalledModsActivity extends BaseFragment {
             status = new TextView(context);
             status.setTextSize(13);
             actions.addView(status, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1.0f));
+
+            settingsBtn = new ImageView(context);
+            settingsBtn.setImageResource(R.drawable.msg_settings);
+            settingsBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            settingsBtn.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText), PorterDuff.Mode.SRC_IN);
+            settingsBtn.setClickable(true);
+            settingsBtn.setVisibility(View.GONE);
+            settingsBtn.setPadding(AndroidUtilities.dp(6), 0, AndroidUtilities.dp(6), 0);
+            actions.addView(settingsBtn, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
+
             deleteBtn = new TextView(context);
             deleteBtn.setText("Удалить");
             deleteBtn.setTextSize(14);
@@ -223,6 +257,12 @@ public class InstalledModsActivity extends BaseFragment {
                 updateStatus();
             });
             deleteBtn.setOnClickListener(v -> a.onDelete(m));
+            if (m.hasSettings) {
+                settingsBtn.setVisibility(View.VISIBLE);
+                settingsBtn.setOnClickListener(v -> a.onOpenSettings(m));
+            } else {
+                settingsBtn.setVisibility(View.GONE);
+            }
             updateStatus();
         }
 

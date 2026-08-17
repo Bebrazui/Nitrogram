@@ -170,9 +170,8 @@ public class ModPreviewActivity extends BottomSheet {
             Toast.makeText(ctx, "Не удалось установить мод", Toast.LENGTH_SHORT).show();
             return;
         }
-        if (applyNow) {
-            ModManager.loadNative(dest);
-        }
+        ModManager.loadNative(dest);
+        ModManager.registerLoadedMod(meta.id);
         Toast.makeText(ctx,
                 applyNow ? "Мод установлен и применён." : "Мод установлен. Применится при перезапуске.",
                 Toast.LENGTH_LONG).show();

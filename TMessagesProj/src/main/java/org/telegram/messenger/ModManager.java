@@ -13,9 +13,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,6 +40,9 @@ public final class ModManager {
     private static final String MARKER_START = "NITROGRAM_MOD_META_START";
     private static final String MARKER_END = "NITROGRAM_MOD_META_END";
     private static final Set<String> loadedPaths = new HashSet<>();
+    // Класс точки входа (ModEntry) каждого загруженного мода, нужен для проброса настроек.
+    private static Class<?> pendingEntry = null;
+    private static final Map<String, Class<?>> modEntryClasses = new HashMap<>();
 
     public static final class ModMeta {
         public String id;
@@ -47,6 +53,7 @@ public final class ModManager {
         public Bitmap icon;
         public boolean loaded;
         public boolean enabled;
+        public boolean hasSettings;
 
         public ModMeta() {
         }
@@ -81,6 +88,7 @@ public final class ModManager {
             meta.description = optString(obj, "description", "");
             meta.version = optString(obj, "version", "");
             meta.extra = optString(obj, "extra", "");
+            meta.hasSettings = obj.optBoolean("settings", false);
             String iconB64 = optString(obj, "icon", null);
             if (iconB64 != null && !iconB64.isEmpty()) {
                 try {
@@ -157,8 +165,148 @@ public final class ModManager {
             ModMeta m = parseMeta(f);
             if (m != null && isEnabled(m.id)) {
                 loadNative(f);
+                registerLoadedMod(m.id);
             }
         }
+    }
+
+    /**
+     * Перенести ожидающий класс входа мода (установленный JNI_OnLoad через
+     * onModEntryClass) в зарегистрированные, и применить сохранённые настройки.
+     * Вызывается после каждой загрузки .so, чтобы hasSettings() работало сразу,
+     * без перезапуска приложения.
+     */
+    public static void registerLoadedMod(String id) {
+        Log.i(TAG, "registerLoadedMod " + id + " pending=" + (pendingEntry != null));
+        if (pendingEntry != null) {
+            modEntryClasses.put(id, pendingEntry);
+            pendingEntry = null;
+            String stored = getModSettingsJson(id);
+            if (stored != null) {
+                applySettings(id, stored);
+            }
+        }
+    }
+
+    /**
+     * Вызывается из .so (JNI_OnLoad) сразу после загрузки DEX мода. Передаёт
+     * класс точки входа (ModEntry), чтобы клиент мог вызывать его методы настроек.
+     */
+    public static void onModEntryClass(Class<?> entry) {
+        Log.i(TAG, "onModEntryClass: " + (entry != null ? entry.getName() : "null"));
+        pendingEntry = entry;
+    }
+
+    public static String debugState() {
+        return "registered=" + modEntryClasses.size() + " pending=" + (pendingEntry != null);
+    }
+
+    /** Передать моду сохранённые значения настроек в виде JSON-объекта. */
+    public static void applySettings(String id, String json) {
+        Class<?> e = modEntryClasses.get(id);
+        if (e == null || json == null) {
+            return;
+        }
+        try {
+            Method m = e.getMethod("applySettings", String.class);
+            if (m != null) {
+                m.invoke(null, json);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "applySettings failed " + id, t);
+        }
+    }
+
+    /** Есть ли у мода экран настроек (createSettingsScreen() возвращает не-null). */
+    public static boolean hasSettings(String id) {
+        Class<?> e = modEntryClasses.get(id);
+        if (e == null) {
+            return false;
+        }
+        try {
+            Method m = e.getMethod("createSettingsScreen");
+            return m.invoke(null) != null;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Зарегистрирован ли класс входа мода (загружен ли его DEX). */
+    public static boolean isModRegistered(String id) {
+        return modEntryClasses.containsKey(id);
+    }
+
+    /** Получить экземпляр экрана настроек мода либо null. */
+    public static Object getSettingsScreen(String id) {
+        Class<?> e = modEntryClasses.get(id);
+        Log.i(TAG, "getSettingsScreen " + id + " registered=" + (e != null) + " " + debugState());
+        if (e == null) {
+            return null;
+        }
+        try {
+            Method m = e.getMethod("createSettingsScreen");
+            Object res = m.invoke(null);
+            Log.i(TAG, "getSettingsScreen result=" + (res != null ? res.getClass().getName() : "null"));
+            return res;
+        } catch (Throwable t) {
+            Log.e(TAG, "getSettingsScreen error", t);
+            return null;
+        }
+    }
+
+    public static Object getModSetting(String id, String key, Object def) {
+        JSONObject s = loadState();
+        JSONObject settings = s.optJSONObject("settings");
+        if (settings == null) {
+            return def;
+        }
+        JSONObject m = settings.optJSONObject(id);
+        if (m == null || !m.has(key)) {
+            return def;
+        }
+        try {
+            return m.get(key);
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    public static void setModSetting(String id, String key, Object value) {
+        JSONObject s = loadState();
+        JSONObject settings = s.optJSONObject("settings");
+        if (settings == null) {
+            settings = new JSONObject();
+            try {
+                s.put("settings", settings);
+            } catch (JSONException ignored) {
+                return;
+            }
+        }
+        JSONObject m = settings.optJSONObject(id);
+        if (m == null) {
+            m = new JSONObject();
+            try {
+                settings.put(id, m);
+            } catch (JSONException ignored) {
+                return;
+            }
+        }
+        try {
+            m.put(key, value);
+        } catch (JSONException ignored) {
+            return;
+        }
+        saveState(s);
+    }
+
+    private static String getModSettingsJson(String id) {
+        JSONObject s = loadState();
+        JSONObject settings = s.optJSONObject("settings");
+        if (settings == null) {
+            return null;
+        }
+        JSONObject m = settings.optJSONObject(id);
+        return m == null ? null : m.toString();
     }
 
     public static List<ModMeta> getInstalledMods() {
@@ -176,6 +324,7 @@ public final class ModManager {
             if (m != null) {
                 m.loaded = loadedPaths.contains(f.getAbsolutePath());
                 m.enabled = isEnabled(m.id);
+                m.hasSettings = hasSettings(m.id) || m.hasSettings;
                 list.add(m);
             }
         }

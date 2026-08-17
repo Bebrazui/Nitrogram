@@ -125,3 +125,10 @@
 # Use -keep to explicitly keep any other classes shrinking would remove
 -dontoptimize
 -dontobfuscate
+
+# Nitrogram modsdk: must ship in the APK so mods can implement these interfaces
+# (loaded via InMemoryDexClassLoader with the app class loader as parent).
+-keep class org.nitrogram.modsdk.** { *; }
+-keep class org.telegram.messenger.ModManager { *; }
+-keep class org.telegram.ui.ModDetailSettingsActivity { *; }
+-keep class org.telegram.ui.InstalledModsActivity { *; }
