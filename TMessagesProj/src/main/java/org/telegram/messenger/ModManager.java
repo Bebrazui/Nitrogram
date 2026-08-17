@@ -46,6 +46,7 @@ public final class ModManager {
         public String extra;
         public Bitmap icon;
         public boolean loaded;
+        public boolean enabled;
 
         public ModMeta() {
         }
@@ -153,7 +154,10 @@ public final class ModManager {
             return;
         }
         for (File f : files) {
-            loadNative(f);
+            ModMeta m = parseMeta(f);
+            if (m != null && isEnabled(m.id)) {
+                loadNative(f);
+            }
         }
     }
 
@@ -171,10 +175,62 @@ public final class ModManager {
             ModMeta m = parseMeta(f);
             if (m != null) {
                 m.loaded = loadedPaths.contains(f.getAbsolutePath());
+                m.enabled = isEnabled(m.id);
                 list.add(m);
             }
         }
         return list;
+    }
+
+    private static final String STATE_FILE = "mods_state.json";
+
+    private static JSONObject loadState() {
+        File f = new File(getModsDir(), STATE_FILE);
+        if (!f.exists()) {
+            return new JSONObject();
+        }
+        try {
+            return new JSONObject(new String(readAllBytes(f), "UTF-8"));
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    private static void saveState(JSONObject s) {
+        File f = new File(getModsDir(), STATE_FILE);
+        try (FileOutputStream out = new FileOutputStream(f)) {
+            out.write(s.toString().getBytes("UTF-8"));
+        } catch (IOException e) {
+            Log.e(TAG, "saveState failed", e);
+        }
+    }
+
+    public static boolean isEnabled(String id) {
+        return loadState().optBoolean(id + "_enabled", true);
+    }
+
+    public static void setEnabled(String id, boolean enabled) {
+        JSONObject s = loadState();
+        try {
+            s.put(id + "_enabled", enabled);
+        } catch (JSONException ignored) {
+        }
+        saveState(s);
+    }
+
+    public static File getModFile(String id) {
+        return new File(getModsDir(), id + ".so");
+    }
+
+    public static void deleteMod(String id) {
+        File f = getModFile(id);
+        if (f.exists()) {
+            f.delete();
+        }
+        JSONObject s = loadState();
+        s.remove(id + "_enabled");
+        saveState(s);
+        loadedPaths.remove(f.getAbsolutePath());
     }
 
     private static byte[] readAllBytes(File f) throws IOException {

@@ -108,7 +108,7 @@ public class ModSettingsActivity extends BaseFragment {
             } else if (position == proxyRow) {
                 presentFragment(new WsProxySettingsActivity());
             } else if (position == installedModsRow) {
-                showInstalledMods();
+                presentFragment(new InstalledModsActivity());
             }
         });
 
@@ -216,23 +216,5 @@ public class ModSettingsActivity extends BaseFragment {
                 }
             }
         }
-    }
-
-    private void showInstalledMods() {
-        List<ModManager.ModMeta> mods = ModManager.getInstalledMods();
-        StringBuilder sb = new StringBuilder();
-        if (mods.isEmpty()) {
-            sb.append("Нет установленных модов.");
-        } else {
-            for (ModManager.ModMeta m : mods) {
-                sb.append("• ").append(m.name).append(" v").append(m.version)
-                        .append(m.loaded ? " (загружен)" : " (не загружен)").append("\n");
-            }
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle("Установленные моды");
-        builder.setMessage(sb.toString().trim());
-        builder.setPositiveButton("OK", null);
-        showDialog(builder.create());
     }
 }
