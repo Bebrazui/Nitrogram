@@ -1236,6 +1236,19 @@ public class ItemOptions {
 
         setupSelectors();
 
+        if (org.telegram.messenger.MaterialContainers.isEnabled() && scrimViewBackground == null && scrimView != null) {
+            android.view.ViewParent parent = scrimView.getParent();
+            if (parent instanceof org.telegram.ui.Components.RecyclerListView) {
+                org.telegram.ui.Components.RecyclerListView rlv = (org.telegram.ui.Components.RecyclerListView) parent;
+                if (rlv.hasSections()) {
+                    Drawable materialBg = org.telegram.messenger.MaterialContainers.makeClipBackground(rlv, scrimView);
+                    if (materialBg != null) {
+                        setScrimViewBackground(materialBg);
+                    }
+                }
+            }
+        }
+
         if (fixedWidthDp > 0) {
             for (int j = 0; j < layout.getChildCount() - 1; ++j) {
                 View child = j == layout.getChildCount() - 1 ? lastLayout : layout.getChildAt(j);

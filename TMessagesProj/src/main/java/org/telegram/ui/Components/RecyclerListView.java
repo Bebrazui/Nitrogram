@@ -2674,7 +2674,15 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
         if (hasSections() && !ignoreClipChild) {
             canvas.save();
             clipChild(canvas, child);
-            boolean r = super.drawChild(canvas, child, drawingTime);
+            boolean r;
+            if (org.telegram.messenger.MaterialContainers.isEnabled() && Theme.dividerPaint != null) {
+                int oldAlpha = Theme.dividerPaint.getAlpha();
+                Theme.dividerPaint.setAlpha(0);
+                r = super.drawChild(canvas, child, drawingTime);
+                Theme.dividerPaint.setAlpha(oldAlpha);
+            } else {
+                r = super.drawChild(canvas, child, drawingTime);
+            }
             canvas.restore();
             return r;
         } else {
@@ -3249,6 +3257,14 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
         return sectionsItemDecoration != null;
     }
 
+    public ListSectionsDecoration getSectionsItemDecoration() {
+        return sectionsItemDecoration;
+    }
+
+    public Theme.ResourcesProvider getResourcesProvider() {
+        return resourcesProvider;
+    }
+
     private ListSectionsDecoration sectionsItemDecoration;
     private Utilities.CallbackReturn<Integer, Boolean> isViewTypeSection;
     private Utilities.Callback5<Canvas, RectF, Float, Float, Float> drawSectionBackground;
@@ -3398,6 +3414,9 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
                     }
                 }
             }
+            if (org.telegram.messenger.MaterialContainers.isEnabled()) {
+                org.telegram.messenger.MaterialContainers.augmentItemOffsets(outRect, view, parent.getChildAdapterPosition(view));
+            }
         }
 
         @Override
@@ -3466,6 +3485,10 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
         return false;
     }
     public void drawSectionsBackgrounds(Canvas canvas) {
+        if (org.telegram.messenger.MaterialContainers.isEnabled()) {
+            org.telegram.messenger.MaterialContainers.drawSectionsBackgrounds(canvas, this);
+            return;
+        }
         if (drawSectionBackground == null) return;
 
         if (isAnimating()) {
@@ -3611,6 +3634,10 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
 
     private final Path clipPath = new Path();
     private void clipChild(Canvas canvas, View child) {
+        if (org.telegram.messenger.MaterialContainers.isEnabled()) {
+            org.telegram.messenger.MaterialContainers.clipChild(canvas, child, this);
+            return;
+        }
         if (child == null || !sectionsItemDecoration.isSectionItem.run(child))
             return;
 
@@ -3672,6 +3699,12 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
     }
 
     public Drawable getClipBackground(View child, boolean forceRound) {
+        if (org.telegram.messenger.MaterialContainers.isEnabled()) {
+            Drawable materialBg = org.telegram.messenger.MaterialContainers.makeClipBackground(this, child);
+            if (materialBg != null) {
+                return materialBg;
+            }
+        }
         if (child.getParent() != this || !hasSections() || !sectionsItemDecoration.isSectionItem.run(child)) return null;
 
         boolean prev, next;

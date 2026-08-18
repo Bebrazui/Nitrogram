@@ -1435,7 +1435,7 @@ public class Theme {
         public OverrideWallpaperInfo overrideWallpaper;
         public boolean isDefault;
 
-        ThemeAccent() {
+        public ThemeAccent() {
 
         }
 
@@ -6722,6 +6722,7 @@ public class Theme {
         if (accent != null) {
             shouldDrawGradientIcons = accent.fillAccentColors(currentColorsNoAccent, currentColors);
         }
+        org.telegram.messenger.MonetColor.applyIfEnabled();
         if (!messages) {
             boolean async = !(LaunchActivity.getLastFragment() instanceof ChatActivity);
             reloadWallpaper(async);

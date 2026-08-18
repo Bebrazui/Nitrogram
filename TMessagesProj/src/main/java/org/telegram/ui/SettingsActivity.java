@@ -698,7 +698,6 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         items.add(SettingCell.Factory.of(9, IconBackgroundColors.ORANGE_DEEP.top, IconBackgroundColors.ORANGE_DEEP.bottom, R.drawable.settings_power, getString(R.string.SettingsPowerSaving), getString(R.string.SettingsPowerSavingInfo)));
         items.add(SettingCell.Factory.of(10, IconBackgroundColors.PURPLE.top, IconBackgroundColors.PURPLE.bottom, R.drawable.settings_language, getString(R.string.SettingsLanguage), LocaleController.getCurrentLanguageName()));
         items.add(SettingCell.Factory.of(24, 0xFF5865F2, 0xFF2F8CFF, R.drawable.settings_chat, "Nitrogram Mod", "Nitrogram Mod settings"));
-        items.add(SettingCell.Factory.of(26, 0xFF5865F2, 0xFF2F8CFF, R.drawable.settings_features, getString(R.string.NitrogramSettings), getString(R.string.NitrogramSettingsInfo)));
 
         items.add(UItem.asShadow(null));
 
@@ -840,9 +839,6 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 break;
             case 24:
                 presentSettingFragment(new ModSettingsActivity());
-                break;
-            case 26:
-                presentSettingFragment(new NitrogramSettingsActivity());
                 break;
 
             case 11:

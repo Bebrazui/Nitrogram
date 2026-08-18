@@ -590,12 +590,18 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
     }
 
     private boolean hasDivider(int position) {
+        if (org.telegram.messenger.MaterialContainers.isEnabled() && listView != null && listView.hasSections()) {
+            return false;
+        }
         UItem item = getItem(position);
         UItem nextItem = getItem(position + 1);
         return item != null && !item.hideDivider && nextItem != null && isShadow(nextItem.viewType) == isShadow(item.viewType);
     }
 
     public static boolean isShadow(int viewType) {
+        if (org.telegram.messenger.MaterialContainers.isEnabled() && org.telegram.messenger.MaterialContainers.isHeaderViewType(viewType)) {
+            return true;
+        }
         if (viewType >= UItem.factoryViewTypeStartsWith) {
             UItem.UItemFactory<?> factory = UItem.findFactory(viewType);
             return factory != null && factory.isShadow();
@@ -1058,6 +1064,7 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
         if (item.bind != null) {
             item.bind.run(holder.itemView);
         }
+        org.telegram.messenger.MaterialContainers.onUniversalBind(this, holder, position);
     }
 
     private View findViewByItemObject(Object object) {
@@ -1161,6 +1168,10 @@ public class UniversalAdapter extends AdapterWithDiffUtils {
     public UItem getItem(int position) {
         if (position < 0 || position >= items.size()) return null;
         return items.get(position);
+    }
+
+    public RecyclerListView getListView() {
+        return listView;
     }
 
     public UItem findItem(int itemId) {
