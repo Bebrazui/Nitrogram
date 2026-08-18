@@ -125,6 +125,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.ModManager;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NitrogramChunkedFileHelper;
 import org.telegram.messenger.NotificationCenter;
@@ -646,6 +647,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         default void didPressImage(ChatMessageCell cell, float x, float y, boolean fullPreview) {
         }
 
+        default void didPressNitroModInstall(ChatMessageCell cell, MessageObject message) {
+        }
+
         default void didPressPollMedia(ChatMessageCell cell, ImageReceiver imageReceiver, TLRPC.PollAnswer answer, TLRPC.MessageMedia media, float x, float y, int unshuffledIndex) {
         }
 
@@ -919,6 +923,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private final static int DOCUMENT_ATTACH_TYPE_WALLPAPER = 8;
     private final static int DOCUMENT_ATTACH_TYPE_THEME = 9;
     private final static int DOCUMENT_ATTACH_TYPE_STORY = 10;
+    private final static int DOCUMENT_ATTACH_TYPE_MOD = 11;
 
     public class PollButton {
         public int x;
@@ -1151,6 +1156,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
     private int documentAttachType;
     private TLRPC.Document documentAttach;
     public boolean drawPhotoImage;
+    private Bitmap modIconBitmap;
+    private int modInstallButtonX, modInstallButtonY, modInstallButtonW, modInstallButtonH;
+    private boolean modInstallPressed;
+    private String modInstallText = "Установить";
+    private Paint modButtonTextPaint;
     private boolean hasFactCheck;
     private Text factCheckTitle, factCheckWhat;
     private ButtonBounce factCheckWhatBounce;
@@ -3058,6 +3068,42 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         return false;
     }
 
+    private boolean checkNitroModMotionEvent(MotionEvent event) {
+        if (documentAttachType != DOCUMENT_ATTACH_TYPE_MOD || modInstallButtonW <= 0 || currentMessageObject == null) {
+            return false;
+        }
+        int x = (int) getEventX(event);
+        int y = (int) getEventY(event);
+        boolean inside = x >= modInstallButtonX && x <= modInstallButtonX + modInstallButtonW && y >= modInstallButtonY && y <= modInstallButtonY + modInstallButtonH;
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (inside) {
+                modInstallPressed = true;
+                startCheckLongPress();
+                invalidate();
+                return true;
+            }
+            return false;
+        } else if (event.getAction() == MotionEvent.ACTION_UP) {
+            if (modInstallPressed) {
+                modInstallPressed = false;
+                cancelCheckLongPress();
+                invalidate();
+                if (delegate != null) {
+                    delegate.didPressNitroModInstall(this, currentMessageObject);
+                }
+                return true;
+            }
+        } else if (event.getAction() == MotionEvent.ACTION_CANCEL) {
+            if (modInstallPressed) {
+                modInstallPressed = false;
+                cancelCheckLongPress();
+                invalidate();
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean checkTranscribeButtonMotionEvent(MotionEvent event) {
         return useTranscribeButton && (!isPlayingRound || getVideoTranscriptionProgress() > 0 || wasTranscriptionOpen) && transcribeButton != null && transcribeButton.onTouch(event.getAction(), getEventX(event), getEventY(event));
     }
@@ -4930,6 +4976,10 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         lastTouchX = getEventX(event);
         lastTouchY = getEventY(event);
         backgroundDrawable.setTouchCoords(lastTouchX, lastTouchY);
+
+        if (checkNitroModMotionEvent(event)) {
+            return true;
+        }
 
         boolean result = checkSpoilersMotionEvent(event, 0);
 
@@ -9416,6 +9466,34 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         }
                         additionHeight += reactionsLayoutInBubble.totalHeight;
                     }
+                    if (documentAttachType == DOCUMENT_ATTACH_TYPE_MOD) {
+                        drawPhotoImage = false;
+                        photoWidth = 0;
+                        int iconSize = dp(54);
+                        int titleH = docTitleLayout != null ? docTitleLayout.getHeight() : 0;
+                        int infoH = infoLayout != null ? infoLayout.getHeight() : 0;
+                        int textH = dp(8) + titleH + (infoH > 0 ? dp(2) + infoH : 0) + dp(8);
+                        photoHeight = Math.max(iconSize + dp(16), textH);
+                        int textW = 0;
+                        if (docTitleLayout != null) {
+                            for (int a = 0; a < docTitleLayout.getLineCount(); a++) {
+                                textW = Math.max(textW, (int) Math.ceil(docTitleLayout.getLineWidth(a)));
+                            }
+                        }
+                        if (infoLayout != null) {
+                            for (int a = 0; a < infoLayout.getLineCount(); a++) {
+                                textW = Math.max(textW, (int) Math.ceil(infoLayout.getLineWidth(a)));
+                            }
+                        }
+                        int contentW = dp(8) + iconSize + dp(12) + textW + dp(14) + dp(96) + dp(12);
+                        if (captionLayout != null) {
+                            int captionW = captionLayout.textWidth + getExtraTextX() * 2 + dp(12);
+                            if (captionW > contentW) {
+                                contentW = captionW;
+                            }
+                        }
+                        backgroundWidth = contentW;
+                    }
                 } else if (messageObject.type == MessageObject.TYPE_GEO) {
                     TLRPC.GeoPoint point = MessageObject.getMedia(messageObject.messageOwner).geo;
                     double lat = point.lat;
@@ -12736,6 +12814,14 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (documentAttach == null) {
             return 0;
         }
+        modIconBitmap = null;
+        ModManager.ModMeta nitroMeta = null;
+        {
+            String docName = FileLoader.getDocumentFileName(documentAttach);
+            if (docName != null && docName.toLowerCase().endsWith(".so")) {
+                nitroMeta = ModManager.getModMeta(messageObject);
+            }
+        }
         if (MessageObject.isVoiceDocument(documentAttach)) {
             documentAttachType = DOCUMENT_ATTACH_TYPE_AUDIO;
             double duration = 0;
@@ -12820,6 +12906,42 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                 docTitleLayout = new StaticLayout(str, Theme.chat_infoPaint, docTitleWidth, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
             }
             return 0;
+        } else if (nitroMeta != null) {
+            documentAttachType = DOCUMENT_ATTACH_TYPE_MOD;
+            modIconBitmap = nitroMeta.icon;
+            int iconSize = dp(54);
+            int textMax = maxWidth - dp(116);
+            if (textMax < dp(80)) {
+                textMax = dp(80);
+            }
+            String title = !TextUtils.isEmpty(nitroMeta.name) ? nitroMeta.name : FileLoader.getDocumentFileName(documentAttach);
+            docTitleLayout = StaticLayoutEx.createStaticLayout(title, Theme.chat_docNamePaint, textMax, Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false, TextUtils.TruncateAt.END, textMax, 2, false);
+            docTitleOffsetX = Integer.MIN_VALUE;
+            int titleWidth;
+            if (docTitleLayout != null && docTitleLayout.getLineCount() > 0) {
+                int m = 0;
+                for (int a = 0; a < docTitleLayout.getLineCount(); a++) {
+                    m = Math.max(m, (int) Math.ceil(docTitleLayout.getLineWidth(a)));
+                    docTitleOffsetX = Math.max(docTitleOffsetX, (int) Math.ceil(-docTitleLayout.getLineLeft(a)));
+                }
+                titleWidth = Math.min(textMax, m);
+            } else {
+                titleWidth = 0;
+                docTitleOffsetX = 0;
+            }
+            StringBuilder info = new StringBuilder();
+            if (!TextUtils.isEmpty(nitroMeta.version)) {
+                info.append("v").append(nitroMeta.version);
+            }
+            if (info.length() == 0) {
+                info.append("Мод");
+            }
+            infoWidth = textMax;
+            infoLayout = new StaticLayout(TextUtils.ellipsize(info.toString(), Theme.chat_infoPaint, infoWidth, TextUtils.TruncateAt.END), Theme.chat_infoPaint, infoWidth + dp(6), Layout.Alignment.ALIGN_NORMAL, 1.0f, 0.0f, false);
+            modInstallText = "Установить";
+            int infoWidth2 = infoLayout != null && infoLayout.getLineCount() > 0 ? (int) infoLayout.getLineWidth(0) : 0;
+            int width = iconSize + dp(12) + Math.max(titleWidth, infoWidth2) + dp(10) + dp(96);
+            return width;
         } else {
             drawPhotoImage = documentAttach.mime_type != null && (documentAttach.mime_type.toLowerCase().startsWith("image/") || documentAttach.mime_type.toLowerCase().startsWith("video/mp4")) || MessageObject.isDocumentHasThumb(documentAttach);
             if (!drawPhotoImage) {
@@ -14003,6 +14125,22 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             buttonY = dp(13) + namesOffset + mediaOffsetY + (captionAbove && captionLayout != null ? captionLayout.textHeight(transitionParams) : 0);
             radialProgress.setProgressRect(buttonX, buttonY, buttonX + dp(44), buttonY + dp(44));
             photoImage.setImageCoords(buttonX - dp(10), buttonY - dp(10), photoImage.getImageWidth(), photoImage.getImageHeight());
+        } else if (documentAttachType == DOCUMENT_ATTACH_TYPE_MOD) {
+            if (currentMessageObject.isOutOwner()) {
+                buttonX = layoutWidth - backgroundWidth + dp(14);
+            } else {
+                if (isSideMenuLeftMargin()) {
+                    buttonX = dp(23 + ChatActivity.SIDE_MENU_WIDTH);
+                } else if (needDrawAvatar()) {
+                    buttonX = dp(23 + 48);
+                } else {
+                    buttonX = dp(23);
+                }
+            }
+            if (hasLinkPreview) {
+                buttonX += dp(10);
+            }
+            buttonY = dp(13) + namesOffset + mediaOffsetY + (captionAbove && captionLayout != null ? captionLayout.textHeight(transitionParams) : 0);
         } else if (currentMessageObject.type == MessageObject.TYPE_CONTACT) {
             int x;
             if (currentMessageObject.isOutOwner()) {
@@ -15105,6 +15243,69 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             } catch (Exception e) {
                 FileLog.e(e);
             }
+        } else if (documentAttachType == DOCUMENT_ATTACH_TYPE_MOD) {
+            int iconSize = dp(54);
+            int iconX = (int) buttonX;
+            int iconY = (int) buttonY;
+            if (modIconBitmap != null) {
+                try {
+                    rect.set(iconX, iconY, iconX + iconSize, iconY + iconSize);
+                    rectPath.reset();
+                    float r = dp(12);
+                    radii[0] = radii[1] = radii[2] = radii[3] = r;
+                    radii[4] = radii[5] = radii[6] = radii[7] = r;
+                    rectPath.addRoundRect(rect, radii, Path.Direction.CW);
+                    rectPath.close();
+                    canvas.save();
+                    canvas.clipPath(rectPath);
+                    canvas.drawBitmap(modIconBitmap, null, rect, null);
+                    canvas.restore();
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+            }
+            int textX = iconX + iconSize + dp(12);
+            Theme.chat_docNamePaint.setColor(getThemedColor(currentMessageObject.isOutOwner() ? Theme.key_chat_outFileNameText : Theme.key_chat_inFileNameText));
+            Theme.chat_infoPaint.setColor(getThemedColor(currentMessageObject.isOutOwner() ? Theme.key_chat_outFileInfoText : Theme.key_chat_inFileInfoText));
+            int titleTop = iconY + dp(8);
+            try {
+                if (docTitleLayout != null) {
+                    canvas.save();
+                    canvas.translate(textX + docTitleOffsetX, titleTop);
+                    docTitleLayout.draw(canvas);
+                    canvas.restore();
+                }
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            int infoTop = titleTop + (docTitleLayout != null ? docTitleLayout.getHeight() : 0) + dp(2);
+            try {
+                if (infoLayout != null) {
+                    canvas.save();
+                    canvas.translate(textX, infoTop);
+                    infoLayout.draw(canvas);
+                    canvas.restore();
+                }
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            modInstallButtonW = dp(96);
+            modInstallButtonH = dp(32);
+            int bubbleRight = getCurrentBackgroundRight();
+            modInstallButtonX = bubbleRight - dp(10) - modInstallButtonW;
+            modInstallButtonY = iconY + (iconSize - modInstallButtonH) / 2;
+            Paint modBg = getThemedPaint(modInstallPressed ? Theme.key_paint_chatActionBackgroundSelected : Theme.key_paint_chatActionBackground);
+            rect.set(modInstallButtonX, modInstallButtonY, modInstallButtonX + modInstallButtonW, modInstallButtonY + modInstallButtonH);
+            canvas.drawRoundRect(rect, dp(8), dp(8), modBg);
+            if (modButtonTextPaint == null) {
+                modButtonTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                modButtonTextPaint.setTextAlign(Paint.Align.CENTER);
+            }
+            modButtonTextPaint.setTextSize(dp(14));
+            modButtonTextPaint.setColor(getThemedColor(Theme.key_featuredStickers_buttonText));
+            Paint.FontMetrics fm = modButtonTextPaint.getFontMetrics();
+            float baseline = modInstallButtonY + modInstallButtonH / 2.0f - (fm.ascent + fm.descent) / 2.0f;
+            canvas.drawText(modInstallText, modInstallButtonX + modInstallButtonW / 2.0f, baseline, modButtonTextPaint);
         }
         if (currentMessageObject.type == MessageObject.TYPE_GEO && !(MessageObject.getMedia(currentMessageObject.messageOwner) instanceof TLRPC.TL_messageMediaGeoLive) && currentMapProvider == 2 && photoImage.hasNotThumb()) {
             Drawable redLocationIcon = sharedResources.getRedLocationIcon();
@@ -27139,8 +27340,8 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     default:
                         if (currentMessageObject.type == MessageObject.TYPE_PHONE_CALL) {
                             actionLabel = getString("CallAgain", R.string.CallAgain);
-                        }
-                }
+            }
+        }
                 info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_CLICK, actionLabel));
                 info.addAction(new AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, getString("AccActionEnterSelectionMode", R.string.AccActionEnterSelectionMode)));
                 int smallIcon = getMiniIconForCurrentState();

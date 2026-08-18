@@ -9,6 +9,11 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import org.telegram.messenger.FileLoader;
+import org.telegram.messenger.MessageObject;
+import org.telegram.messenger.UserConfig;
+import org.telegram.tgnet.TLRPC;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -20,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Nitrogram custom .so mod system.
@@ -102,6 +108,41 @@ public final class ModManager {
             return meta;
         } catch (Exception e) {
             Log.e(TAG, "parseMeta failed", e);
+            return null;
+        }
+    }
+
+    private static final WeakHashMap<MessageObject, ModMeta> modMetaCache = new WeakHashMap<>();
+
+    /** Мета мод-файла (.so) для сообщения, либо null (не .so / ещё не скачан / нет мета). */
+    public static ModMeta getModMeta(MessageObject mo) {
+        if (mo == null || mo.messageOwner == null) {
+            return null;
+        }
+        ModMeta cached = modMetaCache.get(mo);
+        if (cached != null) {
+            return cached;
+        }
+        TLRPC.Document doc = mo.getDocument();
+        if (doc == null) {
+            return null;
+        }
+        String name = FileLoader.getDocumentFileName(doc);
+        if (name == null || !name.toLowerCase().endsWith(".so")) {
+            return null;
+        }
+        try {
+            File f = FileLoader.getInstance(UserConfig.selectedAccount).getPathToMessage(mo.messageOwner);
+            if (f == null || !f.exists()) {
+                return null;
+            }
+            ModMeta meta = parseMeta(f);
+            if (meta != null) {
+                modMetaCache.put(mo, meta);
+            }
+            return meta;
+        } catch (Exception e) {
+            Log.e(TAG, "getModMeta failed", e);
             return null;
         }
     }

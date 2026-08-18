@@ -4,3 +4,4 @@ dexbuild/
 classes.jar
 dex_payload.h
 *.so
+classes.dex
