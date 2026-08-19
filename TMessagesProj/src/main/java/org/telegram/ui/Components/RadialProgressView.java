@@ -20,6 +20,7 @@ import android.view.animation.DecelerateInterpolator;
 import androidx.annotation.Keep;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ModConfig;
 import org.telegram.ui.ActionBar.Theme;
 
 public class RadialProgressView extends View {
@@ -51,6 +52,7 @@ public class RadialProgressView extends View {
 
     private boolean noProgress = true;
     private final Theme.ResourcesProvider resourcesProvider;
+    private long materialStart;
 
     public RadialProgressView(Context context) {
         this(context, null);
@@ -228,14 +230,37 @@ public class RadialProgressView extends View {
         int x = (getMeasuredWidth() - size) / 2;
         int y = (getMeasuredHeight() - size) / 2;
         cicleRect.set(x, y, x + size, y + size);
-        canvas.drawArc(cicleRect, radOffset, drawingCircleLenght = currentCircleLength, false, progressPaint);
-        updateAnimation();
+        if (ModConfig.isMaterialLoading() && noProgress) {
+            drawMaterial(canvas);
+            invalidate();
+        } else {
+            canvas.drawArc(cicleRect, radOffset, drawingCircleLenght = currentCircleLength, false, progressPaint);
+            updateAnimation();
+        }
     }
 
     public void draw(Canvas canvas, float cx, float cy) {
         cicleRect.set(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy +  size / 2f);
-        canvas.drawArc(cicleRect, radOffset, drawingCircleLenght = currentCircleLength, false, progressPaint);
-        updateAnimation();
+        if (ModConfig.isMaterialLoading() && noProgress) {
+            drawMaterial(canvas);
+        } else {
+            canvas.drawArc(cicleRect, radOffset, drawingCircleLenght = currentCircleLength, false, progressPaint);
+            updateAnimation();
+        }
+    }
+
+    private void drawMaterial(Canvas canvas) {
+        if (materialStart == 0) {
+            materialStart = System.currentTimeMillis();
+        }
+        final float period = 1333f;
+        final float elapsed = (System.currentTimeMillis() - materialStart) / period;
+        final float tt = elapsed - (int) elapsed;
+        final float rot = 360f * elapsed + 90f + 40f * (float) Math.sin(2 * Math.PI * tt);
+        final float lenNorm = 0.5f - 0.5f * (float) Math.cos(2 * Math.PI * tt);
+        final float len = 30f + 270f * lenNorm;
+        drawingCircleLenght = len;
+        canvas.drawArc(cicleRect, rot, len, false, progressPaint);
     }
 
     public boolean isCircle() {

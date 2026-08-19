@@ -16,6 +16,7 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -71,6 +72,8 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     private int colorSelectedText;
     private int colorDefault;
     private boolean usePremiumCounter;
+    private boolean materialStyle;
+    private float indicatorAlpha = 0.09f;
 
     private TabAnimation tabAnimation;
     private TLRPC.TL_attachMenuBot tabAnimationBot;
@@ -154,14 +157,21 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         if (selectedFactor > 0 && !skipDrawSelector) {
             final float alpha = AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(selectedFactor);
 
-            paintCounterBackground.setColor(Theme.multAlpha(colorSelected, 0.09f * alpha));
-            tmpRectF.set(0, 0, viewWidth, getHeight());
-            final float r = Math.min(tmpRectF.width(), tmpRectF.height()) / 2f;
-            final float s = lerp(0.6f, 1, selectedFactor) * MathUtils.clamp(attachScale, 0, 1);
-            canvas.save();
-            canvas.scale(s, s, tmpRectF.centerX(), tmpRectF.centerY());
-            canvas.drawRoundRect(tmpRectF, r, r, paintCounterBackground);
-            canvas.restore();
+            paintCounterBackground.setColor(Theme.multAlpha(colorSelected, indicatorAlpha * alpha));
+            if (materialStyle) {
+                final float w = Math.min(viewWidth, dp(56));
+                final float h = dp(32);
+                tmpRectF.set((viewWidth - w) / 2f, (getHeight() - h) / 2f, (viewWidth + w) / 2f, (getHeight() + h) / 2f);
+                canvas.drawRoundRect(tmpRectF, h / 2f, h / 2f, paintCounterBackground);
+            } else {
+                tmpRectF.set(0, 0, viewWidth, getHeight());
+                final float r = Math.min(tmpRectF.width(), tmpRectF.height()) / 2f;
+                final float s = lerp(0.6f, 1, selectedFactor) * MathUtils.clamp(attachScale, 0, 1);
+                canvas.save();
+                canvas.scale(s, s, tmpRectF.centerX(), tmpRectF.centerY());
+                canvas.drawRoundRect(tmpRectF, r, r, paintCounterBackground);
+                canvas.restore();
+            }
         }
 
         final float hasCounter = (usePremiumCounter ? 1f : isHasCounterAnimator.getFloatValue()) * attachScale;
@@ -239,6 +249,25 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     public boolean isTabSelected() {
         return isSelectedAnimator.getValue();
+    }
+
+    public void setMaterialStyle(boolean v) {
+        materialStyle = v;
+        if (v) {
+            indicatorAlpha = 0.14f;
+            colorSelected = Theme.getColor(Theme.key_glass_tabSelected, resourcesProvider);
+            colorSelectedText = Theme.getColor(Theme.key_glass_tabSelectedText, resourcesProvider);
+            colorDefault = Theme.getColor(Theme.key_glass_tabUnselected, resourcesProvider);
+            textView.setVisibility(View.GONE);
+            imageView.setVisibility(View.VISIBLE);
+            imageView.setLayoutParams(LayoutHelper.createFrame(24, 24, Gravity.CENTER, 0, 0, 0, 0));
+            if (backupImageView != null) {
+                backupImageView.setVisibility(View.VISIBLE);
+                backupImageView.setLayoutParams(LayoutHelper.createFrame(22, 22, Gravity.CENTER, 0, 0, 0, 0));
+            }
+        }
+        updateColors();
+        invalidate();
     }
 
     @Override
@@ -514,6 +543,9 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     @Override
     public float measureTextWidth() {
+        if (materialStyle) {
+            return dp(300);
+        }
         return defaultTextPaint.measureText(textView.getText().toString());
     }
 
@@ -521,6 +553,9 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     @Override
     public float measureTextWidth(float textSizeDp) {
+        if (materialStyle) {
+            return dp(300);
+        }
         if (scaledTextPaint == null) {
             scaledTextPaint = new TextPaint(defaultTextPaint);
         }

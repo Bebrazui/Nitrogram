@@ -15,6 +15,8 @@ public final class ModConfig {
     private static final String KEY_MATERIAL_SECTIONS = "material_sections";
     private static final String KEY_MATERIAL_SPACING = "material_spacing";
     private static final String KEY_DYNAMIC_COLOR = "material_monet";
+    private static final String KEY_MATERIAL_NAV = "material_nav";
+    private static final String KEY_MATERIAL_LOADING = "material_loading";
 
     private ModConfig() {
     }
@@ -64,6 +66,24 @@ public final class ModConfig {
 
     public static void setDynamicColor(boolean value) {
         prefs().edit().putBoolean(KEY_DYNAMIC_COLOR, value).apply();
+    }
+
+    /** Material 3 bottom navigation bar (solid surface + accent indicator, Settings instead of Calls). */
+    public static boolean isMaterialNavigation() {
+        return prefs().getBoolean(KEY_MATERIAL_NAV, false);
+    }
+
+    public static void setMaterialNavigation(boolean value) {
+        prefs().edit().putBoolean(KEY_MATERIAL_NAV, value).apply();
+    }
+
+    /** Material 3 Expressive loading indicator (springy animated arc). */
+    public static boolean isMaterialLoading() {
+        return prefs().getBoolean(KEY_MATERIAL_LOADING, false);
+    }
+
+    public static void setMaterialLoading(boolean value) {
+        prefs().edit().putBoolean(KEY_MATERIAL_LOADING, value).apply();
     }
 
     /** True if the message looks like an advertisement (contains an #реклама / #ad hashtag). */
