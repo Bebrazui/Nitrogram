@@ -292,6 +292,7 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
 
+        HookManager.init();
         org.telegram.messenger.MonetColor.init();
 
         if (BuildVars.LOGS_ENABLED) {

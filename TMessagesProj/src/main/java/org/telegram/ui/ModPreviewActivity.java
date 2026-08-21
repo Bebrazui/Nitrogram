@@ -15,6 +15,7 @@ import android.widget.Toast;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.ModManager;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
@@ -142,17 +143,19 @@ public class ModPreviewActivity extends BottomSheet {
 
         // Apply-after-install checkbox
         TextCheckCell check = new TextCheckCell(context);
-        check.setTextAndCheck("Применить сразу после установки", applyNow, false);
+        check.setTextAndCheck("Применить и запустить сразу", applyNow, false);
         check.setOnClickListener(v -> {
             applyNow = !applyNow;
             check.setChecked(applyNow);
         });
         root.addView(check, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 2, 0, 0));
 
+        boolean isInstalled = ModManager.isModInstalled(meta.id);
+
         // Install button (always at the bottom)
         TextView install = new TextView(context);
         install.setGravity(Gravity.CENTER);
-        install.setText("Установить");
+        install.setText(isInstalled ? "Обновить и запустить мод" : "Установить и запустить мод");
         install.setTextColor(0xffffffff);
         install.setTextSize(15);
         install.setTypeface(AndroidUtilities.bold());
@@ -165,17 +168,46 @@ public class ModPreviewActivity extends BottomSheet {
     }
 
     private void installMod() {
-        File dest = ModManager.installMod(soFile, meta);
-        if (dest == null) {
-            Toast.makeText(ctx, "Не удалось установить мод", Toast.LENGTH_SHORT).show();
-            return;
+        try {
+            File dest = ModManager.installMod(soFile, meta);
+            if (dest == null) {
+                Toast.makeText(ctx, "Не удалось установить мод", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            ModManager.setEnabled(meta.id, true);
+            boolean loaded = ModManager.loadNative(dest);
+            if (loaded) {
+                ModManager.registerLoadedMod(meta.id);
+                Toast.makeText(ctx, "Мод успешно установлен и запущен!", Toast.LENGTH_SHORT).show();
+                dismiss();
+            } else {
+                String err = ModManager.getLastError();
+                showModErrorDialog(err != null ? err : "Не удалось загрузить бинарный файл мода (.so). Убедитесь, что архитектура устройства поддерживает ARM64.");
+            }
+        } catch (Throwable t) {
+            FileLog.e(t);
+            showModErrorDialog(android.util.Log.getStackTraceString(t));
         }
-        ModManager.loadNative(dest);
-        ModManager.registerLoadedMod(meta.id);
-        Toast.makeText(ctx,
-                applyNow ? "Мод установлен и применён." : "Мод установлен. Применится при перезапуске.",
-                Toast.LENGTH_LONG).show();
-        dismiss();
+    }
+
+    private void showModErrorDialog(String errorLog) {
+        if (ctx == null) return;
+        org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(ctx);
+        builder.setTitle("Ошибка запуска мода");
+        builder.setMessage(errorLog);
+        builder.setPositiveButton("Скопировать лог ошибки", (dialog, which) -> {
+            try {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("Mod Error Log", errorLog);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(clip);
+                }
+                Toast.makeText(ctx, "Лог ошибки скопирован в буфер обмена", Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignore) {
+            }
+        });
+        builder.setNegativeButton("Закрыть", null);
+        builder.show();
     }
 
     private static class SheetLayout extends LinearLayout {

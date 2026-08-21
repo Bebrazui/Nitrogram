@@ -52,6 +52,15 @@ public final class NitrogramConfig {
     private static final String KEY_SHOW_PROFILE_GLOW = "show_profile_glow";
     private static final String KEY_SHOW_ANIMATED_ICONS = "show_animated_icons";
     private static final String KEY_PREMIUM_TAB_STYLE = "premium_tab_style";
+
+    private static final String KEY_FAKE_IDENTITY_ENABLED = "fake_identity_enabled";
+    private static final String KEY_FAKE_PHONE = "fake_phone";
+    private static final String KEY_FAKE_USERNAME = "fake_username";
+    private static final String KEY_FAKE_USERNAMES_EXTRA = "fake_usernames_extra";
+    private static final String KEY_FAKE_FIRST_NAME = "fake_first_name";
+    private static final String KEY_FAKE_LAST_NAME = "fake_last_name";
+
+    private static final String KEY_USE_MATERIAL3_COMPONENTS = "use_material3_components";
     public static final int MAX_LOCAL_LIMIT = 9999;
     public static final int MAX_ACCOUNT_SLOTS = 16;
     public static final int SORT_BY_ACTIVITY = 0;
@@ -97,6 +106,25 @@ public final class NitrogramConfig {
 
     private static SharedPreferences prefs() {
         return ApplicationLoader.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    private static final String KEY_VOICE_CHANGER_ENABLED = "voice_changer_enabled";
+    private static final String KEY_VOICE_CHANGER_PRESET = "voice_changer_preset";
+
+    public static boolean isVoiceChangerEnabled() {
+        return prefs().getBoolean(KEY_VOICE_CHANGER_ENABLED, false);
+    }
+
+    public static void setVoiceChangerEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_VOICE_CHANGER_ENABLED, value).apply();
+    }
+
+    public static int getVoiceChangerPreset() {
+        return prefs().getInt(KEY_VOICE_CHANGER_PRESET, 0);
+    }
+
+    public static void setVoiceChangerPreset(int preset) {
+        prefs().edit().putInt(KEY_VOICE_CHANGER_PRESET, preset).apply();
     }
 
     public static boolean isHideTypingEnabled() {
@@ -835,6 +863,103 @@ public final class NitrogramConfig {
             themeInfo.setCurrentAccentId(accentId);
         }
         Theme.saveThemeAccents(themeInfo, true, false, true, false);
+    }
+
+    public static boolean isFakeIdentityEnabled() {
+        return prefs().getBoolean(KEY_FAKE_IDENTITY_ENABLED, false);
+    }
+
+    public static void setFakeIdentityEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_FAKE_IDENTITY_ENABLED, value).apply();
+    }
+
+    public static String getFakePhone() {
+        return prefs().getString(KEY_FAKE_PHONE, "+7 (999) 777-77-77");
+    }
+
+    public static void setFakePhone(String value) {
+        prefs().edit().putString(KEY_FAKE_PHONE, value).apply();
+    }
+
+    public static String getFakeUsername() {
+        return prefs().getString(KEY_FAKE_USERNAME, "durov");
+    }
+
+    public static void setFakeUsername(String value) {
+        prefs().edit().putString(KEY_FAKE_USERNAME, value).apply();
+    }
+
+    public static String getFakeUsernamesExtra() {
+        return prefs().getString(KEY_FAKE_USERNAMES_EXTRA, "nitro_master, vip_user");
+    }
+
+    public static void setFakeUsernamesExtra(String value) {
+        prefs().edit().putString(KEY_FAKE_USERNAMES_EXTRA, value).apply();
+    }
+
+    public static String getFakeFirstName() {
+        return prefs().getString(KEY_FAKE_FIRST_NAME, "");
+    }
+
+    public static void setFakeFirstName(String value) {
+        prefs().edit().putString(KEY_FAKE_FIRST_NAME, value).apply();
+    }
+
+    public static String getFakeLastName() {
+        return prefs().getString(KEY_FAKE_LAST_NAME, "");
+    }
+
+    public static void setFakeLastName(String value) {
+        prefs().edit().putString(KEY_FAKE_LAST_NAME, value).apply();
+    }
+
+    public static boolean isUseMaterial3Components() {
+        return prefs().getBoolean(KEY_USE_MATERIAL3_COMPONENTS, true);
+    }
+
+    public static void setUseMaterial3Components(boolean value) {
+        prefs().edit().putBoolean(KEY_USE_MATERIAL3_COMPONENTS, value).apply();
+    }
+
+    public static void applyFakeIdentity(TLRPC.User user) {
+        if (user == null || !isFakeIdentityEnabled()) return;
+        long myId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
+        if (user.id == myId || user.self) {
+            String phone = getFakePhone();
+            if (phone != null && !phone.isEmpty()) {
+                user.phone = phone.replaceAll("[^0-9+]", "");
+            }
+            String uName = getFakeUsername();
+            if (uName != null && !uName.isEmpty()) {
+                user.username = uName.replace("@", "");
+            }
+            String extraUnames = getFakeUsernamesExtra();
+            if (extraUnames != null && !extraUnames.isEmpty()) {
+                if (user.usernames == null) {
+                    user.usernames = new ArrayList<>();
+                } else {
+                    user.usernames.clear();
+                }
+                String[] parts = extraUnames.split("[,;\\s]+");
+                for (String p : parts) {
+                    String cleanP = p.replace("@", "").trim();
+                    if (!cleanP.isEmpty()) {
+                        TLRPC.TL_username un = new TLRPC.TL_username();
+                        un.username = cleanP;
+                        un.active = true;
+                        user.usernames.add(un);
+                    }
+                }
+            }
+            String firstName = getFakeFirstName();
+            if (firstName != null && !firstName.isEmpty()) {
+                user.first_name = firstName;
+            }
+            String lastName = getFakeLastName();
+            if (lastName != null && !lastName.isEmpty()) {
+                user.last_name = lastName;
+            }
+        }
     }
 
     private static int clampChatDensity(int value) {

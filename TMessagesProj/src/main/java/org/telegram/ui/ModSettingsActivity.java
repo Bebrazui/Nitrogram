@@ -5,17 +5,25 @@
 package org.telegram.ui;
 
 import android.content.Context;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ModConfig;
 import org.telegram.messenger.ModManager;
+import org.telegram.messenger.NitrogramConfig;
+import org.telegram.messenger.UserConfig;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -25,7 +33,7 @@ import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
-import org.telegram.ui.ActionBar.AlertDialog;
+
 import java.util.List;
 
 public class ModSettingsActivity extends BaseFragment {
@@ -34,6 +42,19 @@ public class ModSettingsActivity extends BaseFragment {
     private ListAdapter listAdapter;
 
     private int rowCount;
+    private int fakeHeaderRow;
+    private int fakeSwitchRow;
+    private int fakePhoneRow;
+    private int fakeUsernameRow;
+    private int fakeUsernamesExtraRow;
+    private int fakeFirstNameRow;
+    private int fakeLastNameRow;
+    private int fakeInfoRow;
+
+    private int m3HeaderRow;
+    private int m3SwitchRow;
+    private int m3InfoRow;
+
     private int adsHeaderRow;
     private int blockSponsoredRow;
     private int blockHashtagRow;
@@ -60,16 +81,28 @@ public class ModSettingsActivity extends BaseFragment {
 
     private void updateRows() {
         rowCount = 0;
-        adsHeaderRow = rowCount++;
-        blockSponsoredRow = rowCount++;
-        blockHashtagRow = rowCount++;
-        adsInfoRow = rowCount++;
-        networkHeaderRow = rowCount++;
-        proxyRow = rowCount++;
-        proxyInfoRow = rowCount++;
+
+        // Fake Identity Section
+        fakeHeaderRow = rowCount++;
+        fakeSwitchRow = rowCount++;
+        fakePhoneRow = rowCount++;
+        fakeUsernameRow = rowCount++;
+        fakeUsernamesExtraRow = rowCount++;
+        fakeFirstNameRow = rowCount++;
+        fakeLastNameRow = rowCount++;
+        fakeInfoRow = rowCount++;
+
+        // Material 3 Components Section
+        m3HeaderRow = rowCount++;
+        m3SwitchRow = rowCount++;
+        m3InfoRow = rowCount++;
+
+        // Native Mods & Tools
         modsHeaderRow = rowCount++;
         installedModsRow = rowCount++;
         modsInfoRow = rowCount++;
+
+        // Material Theme & UI
         materialHeaderRow = rowCount++;
         materialSwitchRow = rowCount++;
         materialSpacingRow = rowCount++;
@@ -78,6 +111,17 @@ public class ModSettingsActivity extends BaseFragment {
         materialMonetInfoRow = rowCount++;
         materialNavRow = rowCount++;
         materialLoadingRow = rowCount++;
+
+        // Ads & Filtering
+        adsHeaderRow = rowCount++;
+        blockSponsoredRow = rowCount++;
+        blockHashtagRow = rowCount++;
+        adsInfoRow = rowCount++;
+
+        // Network
+        networkHeaderRow = rowCount++;
+        proxyRow = rowCount++;
+        proxyInfoRow = rowCount++;
     }
 
     @Override
@@ -91,7 +135,7 @@ public class ModSettingsActivity extends BaseFragment {
     public View createView(Context context) {
         actionBar.setBackButtonDrawable(new BackDrawable(false));
         actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Nitrogram");
+        actionBar.setTitle("Настройки Nitrogram");
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -113,7 +157,42 @@ public class ModSettingsActivity extends BaseFragment {
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
         listView.setAdapter(listAdapter);
         listView.setOnItemClickListener((view, position) -> {
-            if (position == blockSponsoredRow) {
+            if (position == fakeSwitchRow) {
+                boolean v = !NitrogramConfig.isFakeIdentityEnabled();
+                NitrogramConfig.setFakeIdentityEnabled(v);
+                ((TextCheckCell) view).setChecked(v);
+                if (listAdapter != null) listAdapter.notifyDataSetChanged();
+            } else if (position == fakePhoneRow) {
+                showInputDialog("Номер телефона", "Любой номер (например, +7 (999) 777-77-77, +1337)", NitrogramConfig.getFakePhone(), text -> {
+                    NitrogramConfig.setFakePhone(text);
+                    if (listAdapter != null) listAdapter.notifyItemChanged(fakePhoneRow);
+                });
+            } else if (position == fakeUsernameRow) {
+                showInputDialog("Основной Username", "Юзернейм (например, durov)", NitrogramConfig.getFakeUsername(), text -> {
+                    NitrogramConfig.setFakeUsername(text);
+                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeUsernameRow);
+                });
+            } else if (position == fakeUsernamesExtraRow) {
+                showInputDialog("Дополнительные Юзернеймы", "Через запятую (например, nitro_master, vip_user)", NitrogramConfig.getFakeUsernamesExtra(), text -> {
+                    NitrogramConfig.setFakeUsernamesExtra(text);
+                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeUsernamesExtraRow);
+                });
+            } else if (position == fakeFirstNameRow) {
+                showInputDialog("Имя", "Введите имя", NitrogramConfig.getFakeFirstName(), text -> {
+                    NitrogramConfig.setFakeFirstName(text);
+                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeFirstNameRow);
+                });
+            } else if (position == fakeLastNameRow) {
+                showInputDialog("Фамилия", "Введите фамилию", NitrogramConfig.getFakeLastName(), text -> {
+                    NitrogramConfig.setFakeLastName(text);
+                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeLastNameRow);
+                });
+            } else if (position == m3SwitchRow) {
+                boolean v = !NitrogramConfig.isUseMaterial3Components();
+                NitrogramConfig.setUseMaterial3Components(v);
+                ((TextCheckCell) view).setChecked(v);
+                Toast.makeText(getParentActivity(), "Переключены компоненты Material 3", Toast.LENGTH_SHORT).show();
+            } else if (position == blockSponsoredRow) {
                 boolean v = !ModConfig.isBlockSponsored();
                 ModConfig.setBlockSponsored(v);
                 ((TextCheckCell) view).setChecked(v);
@@ -140,29 +219,51 @@ public class ModSettingsActivity extends BaseFragment {
                 } else {
                     org.telegram.messenger.MonetColor.restoreAccent();
                 }
-                org.telegram.ui.ActionBar.Theme.refreshThemeColors();
-                if (v) {
-                    int[] c = org.telegram.messenger.MonetColor.getMonetColors();
-                    String src = org.telegram.messenger.MonetColor.getLastSource();
-                    android.widget.Toast toast = android.widget.Toast.makeText(getParentActivity(),
-                            c != null ? "Monet [" + src + "]: #" + String.format("%06X", c[0] & 0xFFFFFF) : "Monet: обои недоступны",
-                            android.widget.Toast.LENGTH_LONG);
-                    toast.show();
-                }
-        } else if (position == materialNavRow) {
-            boolean v = !ModConfig.isMaterialNavigation();
-            ModConfig.setMaterialNavigation(v);
-            ((TextCheckCell) view).setChecked(v);
-            getParentActivity().recreate();
-        } else if (position == materialLoadingRow) {
-            boolean v = !ModConfig.isMaterialLoading();
-            ModConfig.setMaterialLoading(v);
-            ((TextCheckCell) view).setChecked(v);
-            getParentActivity().recreate();
-        }
+                Theme.refreshThemeColors();
+            } else if (position == materialNavRow) {
+                boolean v = !ModConfig.isMaterialNavigation();
+                ModConfig.setMaterialNavigation(v);
+                ((TextCheckCell) view).setChecked(v);
+                getParentActivity().recreate();
+            } else if (position == materialLoadingRow) {
+                boolean v = !ModConfig.isMaterialLoading();
+                ModConfig.setMaterialLoading(v);
+                ((TextCheckCell) view).setChecked(v);
+                getParentActivity().recreate();
+            }
         });
 
         return fragmentView;
+    }
+
+    private interface StringCallback {
+        void onResult(String text);
+    }
+
+    private void showInputDialog(String title, String hint, String currentValue, StringCallback callback) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(title);
+
+        LinearLayout layout = new LinearLayout(getParentActivity());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), AndroidUtilities.dp(10));
+
+        final EditText editText = new EditText(getParentActivity());
+        editText.setHint(hint);
+        editText.setText(currentValue);
+        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        editText.setSelection(editText.getText().length());
+        layout.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        builder.setView(layout);
+        builder.setPositiveButton("Сохранить", (dialog, which) -> {
+            if (callback != null) {
+                callback.onResult(editText.getText().toString());
+            }
+            dialog.dismiss();
+        });
+        builder.setNegativeButton("Отмена", null);
+        builder.show();
     }
 
     private void showSpacingSelector() {
@@ -196,17 +297,18 @@ public class ModSettingsActivity extends BaseFragment {
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
-            return position == blockSponsoredRow || position == blockHashtagRow || position == proxyRow || position == installedModsRow
+            return position == fakeSwitchRow || position == fakePhoneRow || position == fakeUsernameRow || position == fakeUsernamesExtraRow || position == fakeFirstNameRow || position == fakeLastNameRow
+                    || position == m3SwitchRow || position == blockSponsoredRow || position == blockHashtagRow || position == proxyRow || position == installedModsRow
                     || position == materialSwitchRow || position == materialSpacingRow || position == materialMonetRow || position == materialNavRow || position == materialLoadingRow;
         }
 
         @Override
         public int getItemViewType(int position) {
-            if (position == blockSponsoredRow || position == blockHashtagRow || position == materialSwitchRow || position == materialMonetRow || position == materialNavRow || position == materialLoadingRow) {
+            if (position == fakeSwitchRow || position == m3SwitchRow || position == blockSponsoredRow || position == blockHashtagRow || position == materialSwitchRow || position == materialMonetRow || position == materialNavRow || position == materialLoadingRow) {
                 return VIEW_TYPE_CHECK;
-            } else if (position == adsInfoRow || position == proxyInfoRow || position == materialInfoRow || position == materialMonetInfoRow) {
+            } else if (position == fakeInfoRow || position == m3InfoRow || position == adsInfoRow || position == proxyInfoRow || position == materialInfoRow || position == materialMonetInfoRow || position == modsInfoRow) {
                 return VIEW_TYPE_INFO;
-            } else if (position == adsHeaderRow || position == networkHeaderRow || position == modsHeaderRow || position == materialHeaderRow) {
+            } else if (position == fakeHeaderRow || position == m3HeaderRow || position == adsHeaderRow || position == networkHeaderRow || position == modsHeaderRow || position == materialHeaderRow) {
                 return VIEW_TYPE_HEADER;
             }
             return VIEW_TYPE_SETTING;
@@ -242,60 +344,83 @@ public class ModSettingsActivity extends BaseFragment {
             switch (holder.getItemViewType()) {
                 case VIEW_TYPE_CHECK: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
-                if (position == blockSponsoredRow) {
-                    cell.setTextAndCheck("Block sponsored ads", ModConfig.isBlockSponsored(), true);
-                } else if (position == blockHashtagRow) {
-                    cell.setTextAndCheck("Block #реклама / #ad messages", ModConfig.isBlockHashtagAds(), false);
-                } else if (position == materialSwitchRow) {
-                    cell.setTextAndCheck("Material секции", ModConfig.isMaterialSections(), true);
-                } else if (position == materialMonetRow) {
-                    cell.setTextAndCheck("Material You (monet)", ModConfig.isDynamicColor(), true);
-                } else if (position == materialNavRow) {
-                    cell.setTextAndCheck("Material нижняя навигация", ModConfig.isMaterialNavigation(), true);
-                } else if (position == materialLoadingRow) {
-                    cell.setTextAndCheck("Material 3 Expressive загрузка", ModConfig.isMaterialLoading(), true);
-                }
-                break;
+                    if (position == fakeSwitchRow) {
+                        cell.setTextAndCheck("Включить виртуальную подмену профиля", NitrogramConfig.isFakeIdentityEnabled(), true);
+                    } else if (position == m3SwitchRow) {
+                        cell.setTextAndCheck("Material 3 Sliders & Switches", NitrogramConfig.isUseMaterial3Components(), false);
+                    } else if (position == blockSponsoredRow) {
+                        cell.setTextAndCheck("Блокировка спонсорских постов", ModConfig.isBlockSponsored(), true);
+                    } else if (position == blockHashtagRow) {
+                        cell.setTextAndCheck("Блокировка #реклама сообщений", ModConfig.isBlockHashtagAds(), false);
+                    } else if (position == materialSwitchRow) {
+                        cell.setTextAndCheck("Material секции", ModConfig.isMaterialSections(), true);
+                    } else if (position == materialMonetRow) {
+                        cell.setTextAndCheck("Dynamic Colors (Monet)", ModConfig.isDynamicColor(), true);
+                    } else if (position == materialNavRow) {
+                        cell.setTextAndCheck("Material навигация", ModConfig.isMaterialNavigation(), true);
+                    } else if (position == materialLoadingRow) {
+                        cell.setTextAndCheck("Material загрузка", ModConfig.isMaterialLoading(), false);
+                    }
+                    break;
                 }
                 case VIEW_TYPE_HEADER: {
                     HeaderCell cell = (HeaderCell) holder.itemView;
-                if (position == adsHeaderRow) {
-                    cell.setText("Ad blocking");
-                } else if (position == networkHeaderRow) {
-                    cell.setText("Network");
-                } else if (position == modsHeaderRow) {
-                    cell.setText("Mods");
-                } else if (position == materialHeaderRow) {
-                    cell.setText("Оформление");
-                }
-                break;
+                    if (position == fakeHeaderRow) {
+                        cell.setText("Подмена личных данных");
+                    } else if (position == m3HeaderRow) {
+                        cell.setText("Компоненты Material Design 3");
+                    } else if (position == modsHeaderRow) {
+                        cell.setText("Нативные моды");
+                    } else if (position == materialHeaderRow) {
+                        cell.setText("Material 3 оформление");
+                    } else if (position == adsHeaderRow) {
+                        cell.setText("Фильтрация рекламы");
+                    } else if (position == networkHeaderRow) {
+                        cell.setText("Сеть и Прокси");
+                    }
+                    break;
                 }
                 case VIEW_TYPE_SETTING: {
                     TextSettingsCell cell = (TextSettingsCell) holder.itemView;
-                if (position == proxyRow) {
-                    cell.setText("WS Proxy", false);
-                } else if (position == installedModsRow) {
-                    cell.setText("Установленные моды (" + ModManager.getInstalledMods().size() + ")", false);
-                } else if (position == materialSpacingRow) {
-                    int sp = ModConfig.getMaterialSectionsSpacing();
-                    cell.setTextAndValue("Отступы", sp == 0 ? "Обычный" : sp == 1 ? "Большой" : "Огромный", true);
-                }
-                break;
+                    if (position == fakePhoneRow) {
+                        cell.setTextAndValue("Номер телефона", NitrogramConfig.getFakePhone(), true);
+                    } else if (position == fakeUsernameRow) {
+                        cell.setTextAndValue("Основной Username", "@" + NitrogramConfig.getFakeUsername(), true);
+                    } else if (position == fakeUsernamesExtraRow) {
+                        cell.setTextAndValue("Доп. Юзернеймы", NitrogramConfig.getFakeUsernamesExtra(), true);
+                    } else if (position == fakeFirstNameRow) {
+                        cell.setTextAndValue("Имя", NitrogramConfig.getFakeFirstName().isEmpty() ? "Не задано" : NitrogramConfig.getFakeFirstName(), true);
+                    } else if (position == fakeLastNameRow) {
+                        cell.setTextAndValue("Фамилия", NitrogramConfig.getFakeLastName().isEmpty() ? "Не задана" : NitrogramConfig.getFakeLastName(), false);
+                    } else if (position == proxyRow) {
+                        cell.setTextAndValue("WebSocket / Shadowsocks прокси", "Настройки", false);
+                    } else if (position == installedModsRow) {
+                        cell.setTextAndValue("Управление нативными модами (.so)", "Список модов", false);
+                    } else if (position == materialSpacingRow) {
+                        String v = "Обычный";
+                        int s = ModConfig.getMaterialSectionsSpacing();
+                        if (s == 1) v = "Большой";
+                        else if (s == 2) v = "Огромный";
+                        cell.setTextAndValue("Отступы секций", v, true);
+                    }
+                    break;
                 }
                 case VIEW_TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
-                if (position == adsInfoRow) {
-                    cell.setText("Hides Telegram's official sponsored messages and channel posts tagged with #реклама or #ad.");
-                } else if (position == proxyInfoRow) {
-                    cell.setText("Built-in WebSocket proxy settings.");
-                } else if (position == modsInfoRow) {
-                    cell.setText("Список загруженных .so модов. Установка выполняется через .so файл, отправленный в чате.");
-                } else if (position == materialInfoRow) {
-                    cell.setText("Стилизует секции списков в стиле Material 3: скруглённые карточки, отступы между секциями и стиль заголовков.");
-                } else if (position == materialMonetInfoRow) {
-                    cell.setText("Перекрашивает акцентные цвета приложения (ссылки, переключатели, кнопки, шапка) в цвета системных обоев (Android 12+).");
-                }
-                break;
+                    if (position == fakeInfoRow) {
+                        cell.setText("Визуально подменяет номер телефона (любой формат), юзернеймы и имя в профиле и интерфейсе клиента.");
+                    } else if (position == m3InfoRow) {
+                        cell.setText("Заменяет стандартные ползунки и переключатели приложения на компоненты Material Design 3.");
+                    } else if (position == modsInfoRow) {
+                        cell.setText("Управление сторонними .so модами, хуками и их параметрами.");
+                    } else if (position == adsInfoRow) {
+                        cell.setText("Автоматически скрывает рекламные посты в каналах и сообщения с хештегами рекламы.");
+                    } else if (position == proxyInfoRow) {
+                        cell.setText("Настройка встроенных обходов и прокси-протоколов.");
+                    } else if (position == materialInfoRow) {
+                        cell.setText("Настройки визуала Material 3.");
+                    }
+                    break;
                 }
             }
         }

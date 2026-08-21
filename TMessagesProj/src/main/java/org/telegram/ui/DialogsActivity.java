@@ -288,7 +288,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     private static final boolean TMP_DISABLE_TOPICS_TWO_COLUMNS = false;
 
-    public static final int MAIN_TABS_HEIGHT = 56;
+    public static final int MAIN_TABS_HEIGHT = 68;
     public static final int MAIN_TABS_MARGIN = 8;
     public static final int MAIN_TABS_HEIGHT_WITH_MARGINS = MAIN_TABS_HEIGHT + MAIN_TABS_MARGIN * 2;
     public static final int FILTER_TABS_HEIGHT = 36;
@@ -1121,7 +1121,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 }
             }
             if (!hasMainTabs && communityId == 0) {
-                AndroidUtilities.drawNavigationBarProtection(canvas, this, getThemedColor(Theme.key_windowBackgroundWhite), navigationBarHeight);
+                AndroidUtilities.drawNavigationBarProtection(canvas, this, 0, navigationBarHeight);
             }
             wasDrawn = true;
         }
@@ -13014,11 +13014,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     gradientDrawable.draw(canvas);
                 }
 
-                if (navigationBarHeight > dp(32)) {
-                    gradientDrawable2.setColor(Theme.multAlpha(getThemedColor(Theme.key_windowBackgroundWhite), 0.9f));
-                    gradientDrawable2.setBounds(0, getMeasuredHeight() - navigationBarHeight, getMeasuredWidth(), getMeasuredHeight());
-                    gradientDrawable2.draw(canvas);
-                }
+//                if (navigationBarHeight > dp(32)) {
+//                    gradientDrawable2.setColor(Theme.multAlpha(getThemedColor(Theme.key_windowBackgroundWhite), 0.9f));
+//                    gradientDrawable2.setBounds(0, getMeasuredHeight() - navigationBarHeight, getMeasuredWidth(), getMeasuredHeight());
+//                    gradientDrawable2.draw(canvas);
+//                }
             }
 
             @Override

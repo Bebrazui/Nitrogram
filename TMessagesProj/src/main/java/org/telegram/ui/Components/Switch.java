@@ -51,6 +51,7 @@ public class Switch extends View {
     private boolean isChecked;
     private Paint paint;
     private Paint paint2;
+    private Paint checkPaint;
 
     private int drawIconType;
     private float iconProgress = 1.0f;
@@ -372,8 +373,73 @@ public class Switch extends View {
     }
 
     @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (org.telegram.messenger.NitrogramConfig.isUseMaterial3Components()) {
+            super.onMeasure(MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(52), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(32), MeasureSpec.EXACTLY));
+        } else {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         if (getVisibility() != VISIBLE) {
+            return;
+        }
+
+        final boolean isM3 = org.telegram.messenger.NitrogramConfig.isUseMaterial3Components();
+
+        if (isM3) {
+            int m3Width = AndroidUtilities.dp(52);
+            int m3TrackHeight = AndroidUtilities.dp(32);
+            int m3X = (getMeasuredWidth() - m3Width) / 2;
+            float m3Y = (getMeasuredHeight() - m3TrackHeight) / 2f;
+            int m3Tx = m3X + AndroidUtilities.dp(16) + (int) (AndroidUtilities.dp(20) * progress);
+            float m3ThumbRad = AndroidUtilities.dpf2(8) + AndroidUtilities.dpf2(4) * progress;
+
+            rectF.set(m3X, m3Y, m3X + m3Width, m3Y + m3TrackHeight);
+            int cTrack = processColor(Theme.getColor(trackCheckedColorKey, resourcesProvider));
+            int cOff = processColor(Theme.getColor(trackColorKey, resourcesProvider));
+
+            if (progress < 0.5f) {
+                // UNCHECKED (OFF) STATE per media_1787310348137.png:
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(Theme.multAlpha(cOff, 0.12f));
+                canvas.drawRoundRect(rectF, m3TrackHeight / 2f, m3TrackHeight / 2f, paint);
+
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(AndroidUtilities.dp(2));
+                paint.setColor(cOff);
+                canvas.drawRoundRect(rectF, m3TrackHeight / 2f, m3TrackHeight / 2f, paint);
+
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(cOff);
+                canvas.drawCircle(m3Tx, getMeasuredHeight() / 2f, m3ThumbRad, paint);
+            } else {
+                // CHECKED (ON) STATE per media_1787310348137.png:
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(cTrack);
+                canvas.drawRoundRect(rectF, m3TrackHeight / 2f, m3TrackHeight / 2f, paint);
+
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(0xFFFFFFFF);
+                canvas.drawCircle(m3Tx, getMeasuredHeight() / 2f, m3ThumbRad, paint);
+
+                if (checkPaint == null) {
+                    checkPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    checkPaint.setStyle(Paint.Style.STROKE);
+                    checkPaint.setStrokeWidth(AndroidUtilities.dpf2(2.2f));
+                    checkPaint.setStrokeCap(Paint.Cap.ROUND);
+                    checkPaint.setStrokeJoin(Paint.Join.ROUND);
+                }
+                checkPaint.setColor(cTrack);
+                android.graphics.Path checkPath = new android.graphics.Path();
+                float cy = getMeasuredHeight() / 2f;
+                checkPath.moveTo(m3Tx - AndroidUtilities.dp(4), cy);
+                checkPath.lineTo(m3Tx - AndroidUtilities.dp(1), cy + AndroidUtilities.dp(3));
+                checkPath.lineTo(m3Tx + AndroidUtilities.dp(4), cy - AndroidUtilities.dp(3));
+                canvas.drawPath(checkPath, checkPaint);
+            }
             return;
         }
 
@@ -384,81 +450,10 @@ public class Switch extends View {
         int tx = x + AndroidUtilities.dp(7) + (int) (AndroidUtilities.dp(17) * progress);
         int ty = getMeasuredHeight() / 2;
 
-
         int color1;
         int color2;
         float colorProgress;
-        int r1;
-        int r2;
-        int g1;
-        int g2;
-        int b1;
-        int b2;
-        int a1;
-        int a2;
-        int red;
-        int green;
-        int blue;
-        int alpha;
-        int color;
-
-        for (int a = 0; a < 2; a++) {
-            if (a == 1 && overrideColorProgress == 0) {
-                continue;
-            }
-            Canvas canvasToDraw = a == 0 ? canvas : overlayCanvas[0];
-
-            if (a == 1) {
-                overlayBitmap[0].eraseColor(0);
-                paint.setColor(0xff000000);
-                overlayMaskCanvas.drawRect(0, 0, overlayMaskBitmap.getWidth(), overlayMaskBitmap.getHeight(), paint);
-                overlayMaskCanvas.drawCircle(overlayCx - getX(), overlayCy - getY(), overlayRad, overlayEraserPaint);
-            }
-            if (overrideColorProgress == 1) {
-                colorProgress = a == 0 ? 0 : 1;
-            } else if (overrideColorProgress == 2) {
-                colorProgress = a == 0 ? 1 : 0;
-            } else {
-                colorProgress = progress;
-            }
-
-            color1 = processColor(Theme.getColor(trackColorKey, resourcesProvider));
-            color2 = processColor(Theme.getColor(trackCheckedColorKey, resourcesProvider));
-            if (a == 0 && iconDrawable != null && lastIconColor != (isChecked ? color2 : color1)) {
-                iconDrawable.setColorFilter(new PorterDuffColorFilter(lastIconColor = (isChecked ? color2 : color1), PorterDuff.Mode.MULTIPLY));
-            }
-
-            r1 = Color.red(color1);
-            r2 = Color.red(color2);
-            g1 = Color.green(color1);
-            g2 = Color.green(color2);
-            b1 = Color.blue(color1);
-            b2 = Color.blue(color2);
-            a1 = Color.alpha(color1);
-            a2 = Color.alpha(color2);
-
-            red = (int) (r1 + (r2 - r1) * colorProgress);
-            green = (int) (g1 + (g2 - g1) * colorProgress);
-            blue = (int) (b1 + (b2 - b1) * colorProgress);
-            alpha = (int) (a1 + (a2 - a1) * colorProgress);
-            color = ((alpha & 0xff) << 24) | ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff);
-            paint.setColor(color);
-            paint2.setColor(color);
-
-            rectF.set(x, y, x + width, y + AndroidUtilities.dpf2(14));
-            canvasToDraw.drawRoundRect(rectF, AndroidUtilities.dpf2(7), AndroidUtilities.dpf2(7), paint);
-            canvasToDraw.drawCircle(tx, ty, AndroidUtilities.dpf2(10), paint);
-
-            if (a == 0 && rippleDrawable != null) {
-                rippleDrawable.setBounds(tx - AndroidUtilities.dp(18), ty - AndroidUtilities.dp(18), tx + AndroidUtilities.dp(18), ty + AndroidUtilities.dp(18));
-                rippleDrawable.draw(canvasToDraw);
-            } else if (a == 1) {
-                canvasToDraw.drawBitmap(overlayMaskBitmap, 0, 0, overlayMaskPaint);
-            }
-        }
-        if (overrideColorProgress != 0) {
-            canvas.drawBitmap(overlayBitmap[0], 0, 0, null);
-        }
+        int r1, r2, g1, g2, b1, b2, a1, a2, red, green, blue, alpha, color;
 
         for (int a = 0; a < 2; a++) {
             if (a == 1 && overrideColorProgress == 0) {
@@ -494,7 +489,15 @@ public class Switch extends View {
             alpha = (int) (a1 + (a2 - a1) * colorProgress);
             paint.setColor(((alpha & 0xff) << 24) | ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff));
 
-            canvasToDraw.drawCircle(tx, ty, AndroidUtilities.dp(8), paint);
+            if (isM3) {
+                int m3Width = AndroidUtilities.dp(44);
+                int m3X = (getMeasuredWidth() - m3Width) / 2;
+                int m3Tx = m3X + AndroidUtilities.dp(12) + (int) (AndroidUtilities.dp(20) * progress);
+                float m3ThumbRad = AndroidUtilities.dpf2(7) + AndroidUtilities.dpf2(3) * progress;
+                canvasToDraw.drawCircle(m3Tx, ty, m3ThumbRad, paint);
+            } else {
+                canvasToDraw.drawCircle(tx, ty, AndroidUtilities.dp(8), paint);
+            }
 
             if (a == 0) {
                 if (iconDrawable != null) {

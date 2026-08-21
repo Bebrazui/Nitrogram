@@ -157,9 +157,22 @@ public final class ModManager {
         return def;
     }
 
+    private static String lastError = null;
+
+    public static String getLastError() {
+        return lastError;
+    }
+
+    public static boolean isModInstalled(String id) {
+        if (id == null) return false;
+        File f = new File(getModsDir(), id + ".so");
+        return f.exists();
+    }
+
     private static String computeId(File f, ModMeta meta) {
-        String base = meta.name + "_" + meta.version + "_" + f.length();
-        return "m" + Integer.toHexString(base.hashCode());
+        String cleanName = meta.name != null ? meta.name.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase() : "mod";
+        cleanName = cleanName.replaceAll("_+", "_").replaceAll("^_+|_+$", "");
+        return "m_" + cleanName;
     }
 
     public static File installMod(File soFile, ModMeta meta) {
@@ -168,6 +181,18 @@ public final class ModManager {
         }
         File dir = getModsDir();
         dir.mkdirs();
+
+        File[] existing = dir.listFiles((d, name) -> name.endsWith(".so"));
+        if (existing != null) {
+            for (File ef : existing) {
+                ModMeta em = parseMeta(ef);
+                if (em != null && (em.id.equals(meta.id) || (em.name != null && em.name.equalsIgnoreCase(meta.name)))) {
+                    Log.i(TAG, "Deleting previous version of mod before install: " + ef.getName());
+                    ef.delete();
+                }
+            }
+        }
+
         File dest = new File(dir, meta.id + ".so");
         try {
             copyFile(soFile, dest);
@@ -180,20 +205,52 @@ public final class ModManager {
 
     public static boolean loadNative(File soFile) {
         if (soFile == null || !soFile.exists()) {
+            lastError = "Файл мода не существует: " + (soFile != null ? soFile.getAbsolutePath() : "null");
             return false;
         }
         try {
             System.load(soFile.getAbsolutePath());
             loadedPaths.add(soFile.getAbsolutePath());
+            lastError = null;
             Log.i(TAG, "loaded " + soFile.getName());
             return true;
         } catch (Throwable e) {
+            lastError = Log.getStackTraceString(e);
             Log.e(TAG, "load failed " + soFile.getName(), e);
             return false;
         }
     }
 
+    private static boolean crashShieldInitialized = false;
+
+    public static void initCrashShield() {
+        if (crashShieldInitialized) return;
+        crashShieldInitialized = true;
+
+        final Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            String stackTrace = Log.getStackTraceString(throwable);
+            if (stackTrace != null && (stackTrace.contains("nitrogram.mod") || stackTrace.contains("Pine") || stackTrace.contains("XposedBridge") || stackTrace.contains("VoiceChangerMod"))) {
+                Log.e(TAG, "CRASH SHIELD INTERCEPTED MOD CRASH! Disabling mods to protect client.", throwable);
+                lastError = stackTrace;
+                disableAllMods();
+            }
+            if (defaultHandler != null) {
+                defaultHandler.uncaughtException(thread, throwable);
+            }
+        });
+    }
+
+    public static void disableAllMods() {
+        List<ModMeta> installed = getInstalledMods();
+        for (ModMeta m : installed) {
+            setEnabled(m.id, false);
+        }
+    }
+
     public static void loadInstalledMods() {
+        initCrashShield();
+
         File dir = getModsDir();
         if (dir == null || !dir.exists()) {
             return;
@@ -204,9 +261,27 @@ public final class ModManager {
         }
         for (File f : files) {
             ModMeta m = parseMeta(f);
-            if (m != null && isEnabled(m.id)) {
-                loadNative(f);
-                registerLoadedMod(m.id);
+            if (m != null) {
+                if (f.getName().startsWith("m9d") || f.getName().startsWith("ma4")) {
+                    Log.i(TAG, "Deleting old obsolete mod file: " + f.getName());
+                    f.delete();
+                    continue;
+                }
+                if (isEnabled(m.id)) {
+                    try {
+                        boolean ok = loadNative(f);
+                        if (ok) {
+                            registerLoadedMod(m.id);
+                        } else {
+                            Log.e(TAG, "Mod load failed for " + m.id + "! Disabling mod for safety.");
+                            setEnabled(m.id, false);
+                        }
+                    } catch (Throwable t) {
+                        lastError = Log.getStackTraceString(t);
+                        Log.e(TAG, "CRASH SHIELD: Mod " + m.id + " threw exception during load! Disabling mod.", t);
+                        setEnabled(m.id, false);
+                    }
+                }
             }
         }
     }
@@ -219,9 +294,23 @@ public final class ModManager {
      */
     public static void registerLoadedMod(String id) {
         Log.i(TAG, "registerLoadedMod " + id + " pending=" + (pendingEntry != null));
-        if (pendingEntry != null) {
-            modEntryClasses.put(id, pendingEntry);
+        Class<?> entryClass = pendingEntry;
+        if (entryClass != null) {
+            modEntryClasses.put(id, entryClass);
             pendingEntry = null;
+        } else {
+            entryClass = modEntryClasses.get(id);
+        }
+
+        if (entryClass != null) {
+            try {
+                java.lang.reflect.Method startM = entryClass.getMethod("start");
+                startM.invoke(null);
+                Log.i(TAG, "Successfully invoked start() on " + entryClass.getName());
+            } catch (Throwable t) {
+                Log.i(TAG, "Invoke start note: " + t.getMessage());
+            }
+
             String stored = getModSettingsJson(id);
             if (stored != null) {
                 applySettings(id, stored);
@@ -360,9 +449,16 @@ public final class ModManager {
         if (files == null) {
             return list;
         }
+        Set<String> seenIds = new HashSet<>();
         for (File f : files) {
             ModMeta m = parseMeta(f);
             if (m != null) {
+                if (seenIds.contains(m.id)) {
+                    Log.i(TAG, "Deleting duplicate mod file in app_mods: " + f.getName());
+                    f.delete();
+                    continue;
+                }
+                seenIds.add(m.id);
                 m.loaded = loadedPaths.contains(f.getAbsolutePath());
                 m.enabled = isEnabled(m.id);
                 m.hasSettings = hasSettings(m.id) || m.hasSettings;

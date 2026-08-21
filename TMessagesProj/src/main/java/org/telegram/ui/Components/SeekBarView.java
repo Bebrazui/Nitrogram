@@ -449,7 +449,8 @@ public class SeekBarView extends FrameLayout {
 
         float centerY = getMeasuredHeight() / 2f;
         float left = selectorWidth / 2f, right = getMeasuredWidth() - selectorWidth / 2;
-        float top = centerY - AndroidUtilities.dp(lineWidthDp) / 2f, bottom = centerY + AndroidUtilities.dp(lineWidthDp) / 2f;
+        float m3LineWidth = org.telegram.messenger.NitrogramConfig.isUseMaterial3Components() ? 8f : lineWidthDp;
+        float top = centerY - AndroidUtilities.dp(m3LineWidth) / 2f, bottom = centerY + AndroidUtilities.dp(m3LineWidth) / 2f;
 
         rect.set(left, top, right, bottom);
         drawProgressBar(canvas, rect, innerPaint1);

@@ -262,7 +262,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                 }
                 super.dispatchDraw(canvas);
                 if (!hasMainTabs) {
-                    AndroidUtilities.drawNavigationBarProtection(canvas, this, getThemedColor(Theme.key_windowBackgroundWhite), navigationBarHeight);
+                    AndroidUtilities.drawNavigationBarProtection(canvas, this, 0, navigationBarHeight);
                 }
             }
 

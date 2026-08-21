@@ -1091,7 +1091,7 @@ public abstract class BaseFragment {
     }
 
     public int getNavigationBarColor() {
-        int color = Theme.getColor(Theme.key_windowBackgroundGray, getResourceProvider());
+        int color = 0;
         if (sheetsStack != null) {
             for (int i = 0; i < sheetsStack.size(); ++i) {
                 AttachedSheet sheet = sheetsStack.get(i);

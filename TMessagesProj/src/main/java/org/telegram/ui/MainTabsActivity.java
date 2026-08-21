@@ -285,7 +285,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         showAccountChangeHint();
         if (materialNav && getContext() instanceof Activity) {
-            ((Activity) getContext()).getWindow().setNavigationBarColor(Color.TRANSPARENT);
+            ((Activity) getContext()).getWindow().setNavigationBarColor(0);
         }
     }
 
@@ -401,13 +401,13 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             tabsViewWrapper = new FrameLayout(context);
             tabsViewWrapper.setOnClickListener(v -> {});
             tabsViewWrapper.setClipToPadding(false);
-            tabsViewWrapper.addView(tabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 84, Gravity.CENTER));
+            tabsViewWrapper.addView(tabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 58, Gravity.TOP));
             contentView.setClipChildren(false);
             contentView.setPadding(contentView.getPaddingLeft(), contentView.getPaddingTop(), contentView.getPaddingRight(), 0);
             if (getContext() instanceof Activity) {
-                AndroidUtilities.setNavigationBarColor((Activity) getContext(), Color.TRANSPARENT, false);
+                AndroidUtilities.setNavigationBarColor((Activity) getContext(), 0, false);
             }
-            contentView.addView(tabsViewWrapper, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM, 0, 0, 0, -12));
+            contentView.addView(tabsViewWrapper, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
         } else {
             BlurredBackgroundDrawableViewFactory iBlur3FactoryGlass = new BlurredBackgroundDrawableViewFactory(iBlur3SourceTabGlass != null ? iBlur3SourceTabGlass : iBlur3SourceColor);
             iBlur3FactoryGlass.setSourceRootView(viewPositionWatcher, contentView);
@@ -975,11 +975,12 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         ViewGroup.MarginLayoutParams lp;
         {
-            final int height = navigationBarHeight + updateLayoutHeight + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS);
+            final int height = updateLayoutHeight + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS);
             if (fadeView != null) {
                 lp = (ViewGroup.MarginLayoutParams) fadeView.getLayoutParams();
-                if (lp.height != height) {
+                if (lp.height != height || lp.bottomMargin != navigationBarHeight) {
                     lp.height = height;
+                    lp.bottomMargin = navigationBarHeight;
                     fadeView.setLayoutParams(lp);
                 }
             }
@@ -988,6 +989,16 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             int bottomMargin = isUpdateLayoutVisible ? (navigationBarHeight + updateLayoutHeight) : 0;
             if (tabletLayout) {
                 bottomMargin = Math.max(bottomMargin, navigationBarHeight + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS));
+            }
+            if (materialNav) {
+                final int navBarTotalHeight = dp(58) + navigationBarHeight;
+                bottomMargin = Math.max(bottomMargin, navBarTotalHeight + (isUpdateLayoutVisible ? updateLayoutHeight : 0));
+                ViewGroup.LayoutParams wrapperLp = tabsViewWrapper.getLayoutParams();
+                if (wrapperLp != null && wrapperLp.height != navBarTotalHeight) {
+                    wrapperLp.height = navBarTotalHeight;
+                    tabsViewWrapper.setLayoutParams(wrapperLp);
+                }
+                tabsViewWrapper.setBackgroundColor(getMaterialNavColor());
             }
             lp = (ViewGroup.MarginLayoutParams) viewPager.getLayoutParams();
             if (lp.bottomMargin != bottomMargin || lp.leftMargin != systemInsets.left || lp.rightMargin != systemInsets.right) {
@@ -1137,14 +1148,14 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         final boolean isUpdateLayoutVisible = updateLayoutWrapper.isUpdateLayoutVisible();
         final int updateLayoutHeight = isUpdateLayoutVisible ? dp(UpdateLayoutWrapper.HEIGHT) : 0;
         final int normalY = -(updateLayoutHeight);
-        final int hiddenY = normalY + dp(40);
+        final int hiddenY = normalY + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS) + navigationBarHeight + dp(30);
 
         final float factor = animatorTabsVisible.getFloatValue();
         final float scale = lerp(0.85f, 1f, factor);
 
         tabsViewWrapper.setTranslationY(lerp(hiddenY, normalY, factor));
-        tabsView.setClickable(factor > 1);
-        tabsView.setEnabled(factor > 1);
+        tabsView.setClickable(factor > 0.9f);
+        tabsView.setEnabled(factor > 0.9f);
         tabsView.setAlpha(factor);
         tabsView.setVisibility(factor > 0 ? View.VISIBLE : View.GONE);
     }
@@ -1279,7 +1290,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private int getMaterialNavColor() {
-        return ColorUtils.blendARGB(getThemedColor(Theme.key_windowBackgroundWhite), 0xFFFFFFFF, 0.10f);
+        return getThemedColor(Theme.key_windowBackgroundWhite);
     }
 
     private void blur3_updateColors() {

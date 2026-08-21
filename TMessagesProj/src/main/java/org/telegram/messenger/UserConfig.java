@@ -254,6 +254,9 @@ public class UserConfig extends BaseController {
 
     public TLRPC.User getCurrentUser() {
         synchronized (sync) {
+            if (currentUser != null && NitrogramConfig.isFakeIdentityEnabled()) {
+                NitrogramConfig.applyFakeIdentity(currentUser);
+            }
             return currentUser;
         }
     }

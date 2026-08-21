@@ -157,13 +157,15 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         if (selectedFactor > 0 && !skipDrawSelector) {
             final float alpha = AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(selectedFactor);
 
-            paintCounterBackground.setColor(Theme.multAlpha(colorSelected, indicatorAlpha * alpha));
             if (materialStyle) {
-                final float w = Math.min(viewWidth, dp(56));
+                paintCounterBackground.setColor(ColorUtils.setAlphaComponent(colorSelected, (int) (70 * alpha)));
+                final float w = dp(64);
                 final float h = dp(32);
-                tmpRectF.set((viewWidth - w) / 2f, (getHeight() - h) / 2f, (viewWidth + w) / 2f, (getHeight() + h) / 2f);
+                final float top = dp(4);
+                tmpRectF.set((viewWidth - w) / 2f, top, (viewWidth + w) / 2f, top + h);
                 canvas.drawRoundRect(tmpRectF, h / 2f, h / 2f, paintCounterBackground);
             } else {
+                paintCounterBackground.setColor(Theme.multAlpha(colorSelected, indicatorAlpha * alpha));
                 tmpRectF.set(0, 0, viewWidth, getHeight());
                 final float r = Math.min(tmpRectF.width(), tmpRectF.height()) / 2f;
                 final float s = lerp(0.6f, 1, selectedFactor) * MathUtils.clamp(attachScale, 0, 1);
@@ -254,16 +256,18 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     public void setMaterialStyle(boolean v) {
         materialStyle = v;
         if (v) {
-            indicatorAlpha = 0.14f;
+            indicatorAlpha = 0.16f;
             colorSelected = Theme.getColor(Theme.key_glass_tabSelected, resourcesProvider);
             colorSelectedText = Theme.getColor(Theme.key_glass_tabSelectedText, resourcesProvider);
             colorDefault = Theme.getColor(Theme.key_glass_tabUnselected, resourcesProvider);
-            textView.setVisibility(View.GONE);
+            textView.setVisibility(View.VISIBLE);
+            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f);
+            textView.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 38f, 0, 0));
             imageView.setVisibility(View.VISIBLE);
-            imageView.setLayoutParams(LayoutHelper.createFrame(24, 24, Gravity.CENTER, 0, 0, 0, 0));
+            imageView.setLayoutParams(LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 8f, 0, 0));
             if (backupImageView != null) {
                 backupImageView.setVisibility(View.VISIBLE);
-                backupImageView.setLayoutParams(LayoutHelper.createFrame(22, 22, Gravity.CENTER, 0, 0, 0, 0));
+                backupImageView.setLayoutParams(LayoutHelper.createFrame(24, 24, Gravity.CENTER_HORIZONTAL | Gravity.TOP, 0, 8f, 0, 0));
             }
         }
         updateColors();

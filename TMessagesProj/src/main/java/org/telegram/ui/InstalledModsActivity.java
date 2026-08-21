@@ -95,15 +95,40 @@ public class InstalledModsActivity extends BaseFragment {
         m.enabled = checked;
         if (checked) {
             File f = ModManager.getModFile(m.id);
-            ModManager.loadNative(f);
-            ModManager.registerLoadedMod(m.id);
-            m.loaded = true;
-            m.hasSettings = ModManager.hasSettings(m.id);
-            listAdapter.notifyDataSetChanged();
-            Toast.makeText(getParentActivity(), "Мод включён.", Toast.LENGTH_SHORT).show();
+            boolean ok = ModManager.loadNative(f);
+            if (ok) {
+                ModManager.registerLoadedMod(m.id);
+                m.loaded = true;
+                m.hasSettings = ModManager.hasSettings(m.id);
+                listAdapter.notifyDataSetChanged();
+                Toast.makeText(getParentActivity(), "Мод включён и запущен.", Toast.LENGTH_SHORT).show();
+            } else {
+                String err = ModManager.getLastError();
+                showModErrorDialog(err != null ? err : "Не удалось загрузить мод");
+            }
         } else {
             Toast.makeText(getParentActivity(), "Мод отключён. Изменения применятся после перезапуска.", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void showModErrorDialog(String errorLog) {
+        if (getParentActivity() == null) return;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Ошибка запуска мода");
+        builder.setMessage(errorLog);
+        builder.setPositiveButton("Скопировать лог ошибки", (dialog, which) -> {
+            try {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getParentActivity().getSystemService(Context.CLIPBOARD_SERVICE);
+                android.content.ClipData clip = android.content.ClipData.newPlainText("Mod Error Log", errorLog);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(clip);
+                }
+                Toast.makeText(getParentActivity(), "Лог ошибки скопирован в буфер обмена", Toast.LENGTH_SHORT).show();
+            } catch (Throwable ignore) {
+            }
+        });
+        builder.setNegativeButton("Закрыть", null);
+        showDialog(builder.create());
     }
 
     void onOpenSettings(ModManager.ModMeta m) {

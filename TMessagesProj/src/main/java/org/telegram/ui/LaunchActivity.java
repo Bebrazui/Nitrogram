@@ -8786,7 +8786,15 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     }
 
     public void setNavigationBarColor(int color) {
-        drawerLayoutContainer.setInternalNavigationBarColor(color);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                getWindow().setNavigationBarColor(0);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    getWindow().setNavigationBarContrastEnforced(false);
+                }
+            } catch (Throwable ignore) {}
+        }
+        drawerLayoutContainer.setInternalNavigationBarColor(0);
 
         BottomSheetTabs bottomSheetTabs = getBottomSheetTabs();
         if (bottomSheetTabs != null) {
