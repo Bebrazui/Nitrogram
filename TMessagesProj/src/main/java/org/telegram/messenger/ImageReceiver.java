@@ -428,6 +428,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
         if (parentObject == null) {
             parentObject = object;
         }
+        isAvatar = true;
         setUseRoundForThumbDrawable(true);
         BitmapDrawable strippedBitmap = null;
         boolean hasStripped = false;
@@ -1398,11 +1399,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                         if (isRoundRect && useRoundRadius) {
                             try {
                                 if (canvas != null) {
-                                    if (roundRadius[0] == 0) {
-                                        canvas.drawRect(roundRect, roundPaint);
-                                    } else {
-                                        canvas.drawRoundRect(roundRect, roundRadius[0], roundRadius[0], roundPaint);
-                                    }
+                                    drawM3Shape(canvas, roundRect, roundRadius, roundPaint);
                                 }
                             } catch (Exception e) {
                                 onBitmapException(bitmapDrawable);
@@ -1517,7 +1514,7 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
                                             canvas.drawRect(roundRect, roundPaint);
                                         }
                                     } else {
-                                        canvas.drawRoundRect(roundRect, roundRadius[0], roundRadius[0], roundPaint);
+                                        drawM3Shape(canvas, roundRect, roundRadius, roundPaint);
                                     }
                                 }
                             } catch (Exception e) {
@@ -2532,6 +2529,25 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
 
     public void setRoundRadius(int tl, int tr, int br, int bl) {
         setRoundRadius(new int[]{tl, tr, br, bl});
+    }
+
+    public boolean isAvatar = false;
+
+    public void setIsAvatar(boolean value) {
+        this.isAvatar = value;
+    }
+
+    public void drawM3Shape(Canvas canvas, RectF rect, int[] radius, Paint paint) {
+        boolean fullCircle = radius != null && radius[0] > 0 && Math.abs(radius[0] - Math.min(rect.width(), rect.height()) / 2.0f) <= AndroidUtilities.dp(4);
+        if (isAvatar || (fullCircle && (staticThumbDrawable instanceof AvatarDrawable || currentImageDrawable instanceof AvatarDrawable || currentThumbDrawable instanceof AvatarDrawable))) {
+            M3ShapeHelper.drawM3Shape(canvas, rect, radius, paint);
+        } else {
+            if (radius == null || radius[0] == 0) {
+                canvas.drawRect(rect, paint);
+            } else {
+                canvas.drawRoundRect(rect, radius[0], radius[0], paint);
+            }
+        }
     }
 
     public void setRoundRadius(int[] value) {

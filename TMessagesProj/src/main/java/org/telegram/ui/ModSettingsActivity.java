@@ -1,145 +1,35 @@
-/*
- * Nitrogram mod settings screen.
- */
-
 package org.telegram.ui;
 
+import static org.telegram.messenger.AndroidUtilities.dp;
+
 import android.content.Context;
-import android.text.InputType;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Toast;
-
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
-import org.telegram.messenger.ModConfig;
-import org.telegram.messenger.ModManager;
-import org.telegram.messenger.NitrogramConfig;
-import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.browser.Browser;
+import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
-import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.ActionBar.BackDrawable;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
-import org.telegram.ui.Cells.HeaderCell;
-import org.telegram.ui.Cells.TextCheckCell;
-import org.telegram.ui.Cells.TextInfoPrivacyCell;
-import org.telegram.ui.Cells.TextSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
-import org.telegram.ui.Components.RecyclerListView;
-
-import java.util.List;
 
 public class ModSettingsActivity extends BaseFragment {
 
-    private RecyclerListView listView;
-    private ListAdapter listAdapter;
-
-    private int rowCount;
-    private int fakeHeaderRow;
-    private int fakeStarsRow;
-    private int fakeSwitchRow;
-    private int fakeResetRow;
-    private int fakePhoneRow;
-    private int fakeUsernameRow;
-    private int fakeUsernamesExtraRow;
-    private int fakeFirstNameRow;
-    private int fakeLastNameRow;
-    private int fakeInfoRow;
-
-    private int m3HeaderRow;
-    private int m3SwitchRow;
-    private int m3InfoRow;
-
-    private int adsHeaderRow;
-    private int blockSponsoredRow;
-    private int blockHashtagRow;
-    private int adsInfoRow;
-    private int networkHeaderRow;
-    private int proxyRow;
-    private int proxyInfoRow;
-    private int modsHeaderRow;
-    private int installedModsRow;
-    private int modsInfoRow;
-    private int materialHeaderRow;
-    private int materialSwitchRow;
-    private int materialSpacingRow;
-    private int materialInfoRow;
-    private int materialMonetRow;
-    private int materialMonetInfoRow;
-    private int materialNavRow;
-    private int materialLoadingRow;
-
-    private static final int VIEW_TYPE_CHECK = 0;
-    private static final int VIEW_TYPE_INFO = 1;
-    private static final int VIEW_TYPE_HEADER = 2;
-    private static final int VIEW_TYPE_SETTING = 3;
-
-    private void updateRows() {
-        rowCount = 0;
-
-        // Fake Identity Section
-        fakeHeaderRow = rowCount++;
-        fakeStarsRow = rowCount++;
-        fakeSwitchRow = rowCount++;
-        fakeResetRow = rowCount++;
-        fakePhoneRow = rowCount++;
-        fakeUsernameRow = rowCount++;
-        fakeUsernamesExtraRow = rowCount++;
-        fakeFirstNameRow = rowCount++;
-        fakeLastNameRow = rowCount++;
-        fakeInfoRow = rowCount++;
-
-        // Material 3 Components Section
-        m3HeaderRow = rowCount++;
-        m3SwitchRow = rowCount++;
-        m3InfoRow = rowCount++;
-
-        // Native Mods & Tools
-        modsHeaderRow = rowCount++;
-        installedModsRow = rowCount++;
-        modsInfoRow = rowCount++;
-
-        // Material Theme & UI
-        materialHeaderRow = rowCount++;
-        materialSwitchRow = rowCount++;
-        materialSpacingRow = rowCount++;
-        materialInfoRow = rowCount++;
-        materialMonetRow = rowCount++;
-        materialMonetInfoRow = rowCount++;
-        materialNavRow = rowCount++;
-        materialLoadingRow = rowCount++;
-
-        // Ads & Filtering
-        adsHeaderRow = rowCount++;
-        blockSponsoredRow = rowCount++;
-        blockHashtagRow = rowCount++;
-        adsInfoRow = rowCount++;
-
-        // Network
-        networkHeaderRow = rowCount++;
-        proxyRow = rowCount++;
-        proxyInfoRow = rowCount++;
-    }
-
-    @Override
-    public boolean onFragmentCreate() {
-        super.onFragmentCreate();
-        updateRows();
-        return true;
-    }
-
     @Override
     public View createView(Context context) {
-        actionBar.setBackButtonDrawable(new BackDrawable(false));
+        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle("Настройки Nitrogram");
+        actionBar.setTitle("");
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
@@ -149,308 +39,166 @@ public class ModSettingsActivity extends BaseFragment {
             }
         });
 
-        listAdapter = new ListAdapter(context);
+        FrameLayout fragmentView = new FrameLayout(context);
+        fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
 
-        FrameLayout frameLayout = new FrameLayout(context);
-        frameLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
-        fragmentView = frameLayout;
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.setVerticalScrollBarEnabled(false);
 
-        listView = new RecyclerListView(context);
-        listView.setVerticalScrollBarEnabled(false);
-        listView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false));
-        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
-        listView.setAdapter(listAdapter);
-        listView.setOnItemClickListener((view, position) -> {
-            if (position == fakeStarsRow) {
-                long currentStars = NitrogramConfig.getFakeStarsAmount();
-                String curStr = currentStars >= 0 ? String.valueOf(currentStars) : "";
-                showInputDialog("Баланс Telegram Stars (Visual)", "Введите число звёзд (или -1 для сброса)", curStr, text -> {
-                    try {
-                        long val = Long.parseLong(text.trim().replaceAll("[^0-9-]", ""));
-                        NitrogramConfig.setFakeStarsAmount(val);
-                        org.telegram.ui.Stars.StarsController.getInstance(currentAccount).invalidateBalance();
-                        if (listAdapter != null) listAdapter.notifyItemChanged(fakeStarsRow);
-                        Toast.makeText(getParentActivity(), "Баланс звёзд обновлен!", Toast.LENGTH_SHORT).show();
-                    } catch (Exception e) {
-                        Toast.makeText(getParentActivity(), "Некорректное число", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            } else if (position == fakeSwitchRow) {
-                boolean v = !NitrogramConfig.isFakeIdentityEnabled();
-                NitrogramConfig.setFakeIdentityEnabled(v);
-                ((TextCheckCell) view).setChecked(v);
-                if (listAdapter != null) listAdapter.notifyDataSetChanged();
-            } else if (position == fakeResetRow) {
-                NitrogramConfig.resetToRealAccount();
-                if (listAdapter != null) listAdapter.notifyDataSetChanged();
-                Toast.makeText(getParentActivity(), "Сброшено к реальным данным аккаунта!", Toast.LENGTH_SHORT).show();
-            } else if (position == fakePhoneRow) {
-                showInputDialog("Номер телефона", "Любой номер (например, +7 (999) 777-77-77, +1337)", NitrogramConfig.getFakePhone(), text -> {
-                    NitrogramConfig.setFakePhone(text);
-                    if (listAdapter != null) listAdapter.notifyItemChanged(fakePhoneRow);
-                });
-            } else if (position == fakeUsernameRow) {
-                showInputDialog("Основной Username", "Юзернейм (например, durov)", NitrogramConfig.getFakeUsername(), text -> {
-                    NitrogramConfig.setFakeUsername(text);
-                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeUsernameRow);
-                });
-            } else if (position == fakeUsernamesExtraRow) {
-                showInputDialog("Дополнительные Юзернеймы", "Через запятую (например, nitro_master, vip_user)", NitrogramConfig.getFakeUsernamesExtra(), text -> {
-                    NitrogramConfig.setFakeUsernamesExtra(text);
-                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeUsernamesExtraRow);
-                });
-            } else if (position == fakeFirstNameRow) {
-                showInputDialog("Имя", "Введите имя", NitrogramConfig.getFakeFirstName(), text -> {
-                    NitrogramConfig.setFakeFirstName(text);
-                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeFirstNameRow);
-                });
-            } else if (position == fakeLastNameRow) {
-                showInputDialog("Фамилия", "Введите фамилию", NitrogramConfig.getFakeLastName(), text -> {
-                    NitrogramConfig.setFakeLastName(text);
-                    if (listAdapter != null) listAdapter.notifyItemChanged(fakeLastNameRow);
-                });
-            } else if (position == m3SwitchRow) {
-                boolean v = !NitrogramConfig.isUseMaterial3Components();
-                NitrogramConfig.setUseMaterial3Components(v);
-                ((TextCheckCell) view).setChecked(v);
-                Toast.makeText(getParentActivity(), "Переключены компоненты Material 3", Toast.LENGTH_SHORT).show();
-            } else if (position == blockSponsoredRow) {
-                boolean v = !ModConfig.isBlockSponsored();
-                ModConfig.setBlockSponsored(v);
-                ((TextCheckCell) view).setChecked(v);
-            } else if (position == blockHashtagRow) {
-                boolean v = !ModConfig.isBlockHashtagAds();
-                ModConfig.setBlockHashtagAds(v);
-                ((TextCheckCell) view).setChecked(v);
-            } else if (position == proxyRow) {
-                presentFragment(new WsProxySettingsActivity());
-            } else if (position == installedModsRow) {
-                presentFragment(new InstalledModsActivity());
-            } else if (position == materialSwitchRow) {
-                boolean v = !ModConfig.isMaterialSections();
-                ModConfig.setMaterialSections(v);
-                ((TextCheckCell) view).setChecked(v);
-            } else if (position == materialSpacingRow) {
-                showSpacingSelector();
-            } else if (position == materialMonetRow) {
-                boolean v = !ModConfig.isDynamicColor();
-                ModConfig.setDynamicColor(v);
-                ((TextCheckCell) view).setChecked(v);
-                if (v) {
-                    org.telegram.messenger.MonetColor.applyAccent();
-                } else {
-                    org.telegram.messenger.MonetColor.restoreAccent();
-                }
-                Theme.refreshThemeColors();
-            } else if (position == materialNavRow) {
-                boolean v = !ModConfig.isMaterialNavigation();
-                ModConfig.setMaterialNavigation(v);
-                ((TextCheckCell) view).setChecked(v);
-                getParentActivity().recreate();
-            } else if (position == materialLoadingRow) {
-                boolean v = !ModConfig.isMaterialLoading();
-                ModConfig.setMaterialLoading(v);
-                ((TextCheckCell) view).setChecked(v);
-                getParentActivity().recreate();
-            }
-        });
+        LinearLayout contentLayout = new LinearLayout(context);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(32));
 
+        // App Logo & Header Info
+        LinearLayout headerLayout = new LinearLayout(context);
+        headerLayout.setOrientation(LinearLayout.VERTICAL);
+        headerLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+        headerLayout.setPadding(0, dp(16), 0, dp(24));
+
+        FrameLayout logoContainer = new FrameLayout(context);
+        logoContainer.setBackground(Theme.createRoundRectDrawable(dp(22), Theme.getColor(Theme.key_avatar_backgroundGreen)));
+        logoContainer.setClipToOutline(true);
+
+        ImageView logoView = new ImageView(context);
+        logoView.setImageResource(R.drawable.nitro_mod_logo);
+        logoView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logoContainer.addView(logoView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+
+        headerLayout.addView(logoContainer, LayoutHelper.createLinear(72, 72, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 12));
+
+        TextView titleView = new TextView(context);
+        titleView.setText("Nitrogram");
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 22);
+        titleView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        titleView.setGravity(Gravity.CENTER);
+        headerLayout.addView(titleView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 4));
+
+        TextView versionView = new TextView(context);
+        try {
+            String versionName = ApplicationLoader.applicationContext.getPackageManager().getPackageInfo(ApplicationLoader.applicationContext.getPackageName(), 0).versionName;
+            int versionCode = ApplicationLoader.applicationContext.getPackageManager().getPackageInfo(ApplicationLoader.applicationContext.getPackageName(), 0).versionCode;
+            versionView.setText(versionName + " (" + versionCode + ")");
+        } catch (Exception ignore) {
+            versionView.setText("1.0.0 (70079)");
+        }
+        versionView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        versionView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        versionView.setGravity(Gravity.CENTER);
+        headerLayout.addView(versionView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));
+
+        contentLayout.addView(headerLayout, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        // Section: Категории
+        TextView categoriesHeader = createSectionHeader(context, "Категории");
+        contentLayout.addView(categoriesHeader, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 8, 8, 8, 8));
+
+        LinearLayout categoriesCard = createCardContainer(context);
+
+        categoriesCard.addView(createRowItem(context, R.drawable.msg_settings, "Основные", null, true, v -> {
+            presentFragment(new ModCategoryActivity(ModCategoryActivity.CATEGORY_MAIN));
+        }));
+
+        categoriesCard.addView(createRowItem(context, R.drawable.msg_theme, "Внешний вид", null, true, v -> {
+            presentFragment(new ModCategoryActivity(ModCategoryActivity.CATEGORY_APPEARANCE));
+        }));
+
+        categoriesCard.addView(createRowItem(context, R.drawable.msg_discussion, "Чаты", null, true, v -> {
+            presentFragment(new ModCategoryActivity(ModCategoryActivity.CATEGORY_CHATS));
+        }));
+
+        categoriesCard.addView(createRowItem(context, R.drawable.msg_customize, "Плагины", null, true, v -> {
+            presentFragment(new ModCategoryActivity(ModCategoryActivity.CATEGORY_PLUGINS));
+        }));
+
+        categoriesCard.addView(createRowItem(context, R.drawable.msg_info, "Другое", null, false, v -> {
+            presentFragment(new ModCategoryActivity(ModCategoryActivity.CATEGORY_OTHER));
+        }));
+
+        contentLayout.addView(categoriesCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 16));
+
+        // Section: Ссылки
+        TextView linksHeader = createSectionHeader(context, "Ссылки");
+        contentLayout.addView(linksHeader, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 8, 8, 8, 8));
+
+        LinearLayout linksCard = createCardContainer(context);
+
+        linksCard.addView(createRowItem(context, R.drawable.msg_channel, "Канал", "@nitrogram_offc", true, v -> {
+            Browser.openUrl(getParentActivity(), "https://t.me/nitrogram_offc");
+        }));
+
+        linksCard.addView(createRowItem(context, R.drawable.msg_groups, "Моды", "@nitromod", true, v -> {
+            Browser.openUrl(getParentActivity(), "https://t.me/nitromod");
+        }));
+
+        linksCard.addView(createRowItem(context, R.drawable.msg_language, "GitHub", "Bebrazui/Nitrogram", false, v -> {
+            Browser.openUrl(getParentActivity(), "https://github.com/Bebrazui/Nitrogram");
+        }));
+
+        contentLayout.addView(linksCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 0, 16));
+
+        scrollView.addView(contentLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        fragmentView.addView(scrollView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+
+        this.fragmentView = fragmentView;
         return fragmentView;
     }
 
-    private interface StringCallback {
-        void onResult(String text);
+    private TextView createSectionHeader(Context context, String title) {
+        TextView textView = new TextView(context);
+        textView.setText(title);
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        textView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        textView.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton));
+        return textView;
     }
 
-    private void showInputDialog(String title, String hint, String currentValue, StringCallback callback) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-        builder.setTitle(title);
-
-        LinearLayout layout = new LinearLayout(getParentActivity());
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), AndroidUtilities.dp(10));
-
-        final EditText editText = new EditText(getParentActivity());
-        editText.setHint(hint);
-        editText.setText(currentValue);
-        editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        editText.setSelection(editText.getText().length());
-        layout.addView(editText, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-
-        builder.setView(layout);
-        builder.setPositiveButton("Сохранить", (dialog, which) -> {
-            if (callback != null) {
-                callback.onResult(editText.getText().toString());
-            }
-            dialog.dismiss();
-        });
-        builder.setNegativeButton("Отмена", null);
-        builder.show();
+    private LinearLayout createCardContainer(Context context) {
+        LinearLayout card = new LinearLayout(context);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(Theme.createRoundRectDrawable(dp(16), Theme.getColor(Theme.key_windowBackgroundWhite)));
+        return card;
     }
 
-    private void showSpacingSelector() {
-        CharSequence[] items = {"Обычный", "Большой", "Огромный"};
-        int current = ModConfig.getMaterialSectionsSpacing();
-        AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
-        b.setTitle("Отступы");
-        b.setItems(items, (dialog, which) -> {
-            ModConfig.setMaterialSectionsSpacing(which);
-            if (listAdapter != null) {
-                listAdapter.notifyItemChanged(materialSpacingRow);
-            }
-            dialog.dismiss();
-        });
-        b.show();
-    }
+    private View createRowItem(Context context, int iconRes, String title, String value, boolean divider, View.OnClickListener onClick) {
+        FrameLayout itemLayout = new FrameLayout(context);
+        itemLayout.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 2));
+        itemLayout.setPadding(dp(16), dp(14), dp(16), dp(14));
+        itemLayout.setOnClickListener(onClick);
 
-    private class ListAdapter extends RecyclerListView.SelectionAdapter {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
 
-        private final Context mContext;
-
-        public ListAdapter(Context context) {
-            mContext = context;
+        if (iconRes != 0) {
+            ImageView iconView = new ImageView(context);
+            iconView.setImageResource(iconRes);
+            iconView.setColorFilter(new PorterDuffColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteGrayIcon), PorterDuff.Mode.MULTIPLY));
+            row.addView(iconView, LayoutHelper.createLinear(24, 24, Gravity.CENTER_VERTICAL, 0, 0, 16, 0));
         }
 
-        @Override
-        public int getItemCount() {
-            return rowCount;
+        TextView titleView = new TextView(context);
+        titleView.setText(title);
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
+        titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        row.addView(titleView, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1.0f, Gravity.CENTER_VERTICAL));
+
+        if (value != null) {
+            TextView valueView = new TextView(context);
+            valueView.setText(value);
+            valueView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+            valueView.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton));
+            row.addView(valueView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL, 8, 0, 0, 0));
         }
 
-        @Override
-        public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            int position = holder.getAdapterPosition();
-            return position == fakeSwitchRow || position == fakePhoneRow || position == fakeUsernameRow || position == fakeUsernamesExtraRow || position == fakeFirstNameRow || position == fakeLastNameRow
-                    || position == m3SwitchRow || position == blockSponsoredRow || position == blockHashtagRow || position == proxyRow || position == installedModsRow
-                    || position == materialSwitchRow || position == materialSpacingRow || position == materialMonetRow || position == materialNavRow || position == materialLoadingRow;
+        itemLayout.addView(row, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        if (divider) {
+            View dividerView = new View(context);
+            dividerView.setBackgroundColor(Theme.getColor(Theme.key_divider));
+            itemLayout.addView(dividerView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 1, Gravity.BOTTOM, dp(56), 0, 0, 0));
         }
 
-        @Override
-        public int getItemViewType(int position) {
-            if (position == fakeSwitchRow || position == m3SwitchRow || position == blockSponsoredRow || position == blockHashtagRow || position == materialSwitchRow || position == materialMonetRow || position == materialNavRow || position == materialLoadingRow) {
-                return VIEW_TYPE_CHECK;
-            } else if (position == fakeInfoRow || position == m3InfoRow || position == adsInfoRow || position == proxyInfoRow || position == materialInfoRow || position == materialMonetInfoRow || position == modsInfoRow) {
-                return VIEW_TYPE_INFO;
-            } else if (position == fakeHeaderRow || position == m3HeaderRow || position == adsHeaderRow || position == networkHeaderRow || position == modsHeaderRow || position == materialHeaderRow) {
-                return VIEW_TYPE_HEADER;
-            }
-            return VIEW_TYPE_SETTING;
-        }
-
-        @Override
-        public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View view;
-            switch (viewType) {
-                case VIEW_TYPE_CHECK:
-                    view = new TextCheckCell(mContext);
-                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                    break;
-                case VIEW_TYPE_HEADER:
-                    view = new HeaderCell(mContext);
-                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                    break;
-                case VIEW_TYPE_SETTING:
-                    view = new TextSettingsCell(mContext);
-                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                    break;
-                case VIEW_TYPE_INFO:
-                default:
-                    view = new TextInfoPrivacyCell(mContext);
-                    break;
-            }
-            view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.WRAP_CONTENT));
-            return new RecyclerListView.Holder(view);
-        }
-
-        @Override
-        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-            switch (holder.getItemViewType()) {
-                case VIEW_TYPE_CHECK: {
-                    TextCheckCell cell = (TextCheckCell) holder.itemView;
-                    if (position == fakeSwitchRow) {
-                        cell.setTextAndCheck("Включить виртуальную подмену профиля", NitrogramConfig.isFakeIdentityEnabled(), true);
-                    } else if (position == m3SwitchRow) {
-                        cell.setTextAndCheck("Material 3 Sliders & Switches", NitrogramConfig.isUseMaterial3Components(), false);
-                    } else if (position == blockSponsoredRow) {
-                        cell.setTextAndCheck("Блокировка спонсорских постов", ModConfig.isBlockSponsored(), true);
-                    } else if (position == blockHashtagRow) {
-                        cell.setTextAndCheck("Блокировка #реклама сообщений", ModConfig.isBlockHashtagAds(), false);
-                    } else if (position == materialSwitchRow) {
-                        cell.setTextAndCheck("Material секции", ModConfig.isMaterialSections(), true);
-                    } else if (position == materialMonetRow) {
-                        cell.setTextAndCheck("Dynamic Colors (Monet)", ModConfig.isDynamicColor(), true);
-                    } else if (position == materialNavRow) {
-                        cell.setTextAndCheck("Material навигация", ModConfig.isMaterialNavigation(), true);
-                    } else if (position == materialLoadingRow) {
-                        cell.setTextAndCheck("Material загрузка", ModConfig.isMaterialLoading(), false);
-                    }
-                    break;
-                }
-                case VIEW_TYPE_HEADER: {
-                    HeaderCell cell = (HeaderCell) holder.itemView;
-                    if (position == fakeHeaderRow) {
-                        cell.setText("Подмена личных данных");
-                    } else if (position == m3HeaderRow) {
-                        cell.setText("Компоненты Material Design 3");
-                    } else if (position == modsHeaderRow) {
-                        cell.setText("Нативные моды");
-                    } else if (position == materialHeaderRow) {
-                        cell.setText("Material 3 оформление");
-                    } else if (position == adsHeaderRow) {
-                        cell.setText("Фильтрация рекламы");
-                    } else if (position == networkHeaderRow) {
-                        cell.setText("Сеть и Прокси");
-                    }
-                    break;
-                }
-                case VIEW_TYPE_SETTING: {
-                    TextSettingsCell cell = (TextSettingsCell) holder.itemView;
-                    if (position == fakeStarsRow) {
-                        long stars = NitrogramConfig.getFakeStarsAmount();
-                        cell.setTextAndValue("Баланс Telegram Stars (Visual)", stars >= 0 ? (stars + " ⭐️") : "Реальный", true);
-                    } else if (position == fakeResetRow) {
-                        cell.setText("Сбросить к реальным данным аккаунта", false);
-                        cell.setTextColor(Theme.getColor(Theme.key_text_RedBold));
-                    } else if (position == fakePhoneRow) {
-                        cell.setTextAndValue("Номер телефона", NitrogramConfig.getFakePhone(), true);
-                    } else if (position == fakeUsernameRow) {
-                        cell.setTextAndValue("Основной Username", "@" + NitrogramConfig.getFakeUsername(), true);
-                    } else if (position == fakeUsernamesExtraRow) {
-                        cell.setTextAndValue("Доп. Юзернеймы", NitrogramConfig.getFakeUsernamesExtra(), true);
-                    } else if (position == fakeFirstNameRow) {
-                        cell.setTextAndValue("Имя", NitrogramConfig.getFakeFirstName().isEmpty() ? "Не задано" : NitrogramConfig.getFakeFirstName(), true);
-                    } else if (position == fakeLastNameRow) {
-                        cell.setTextAndValue("Фамилия", NitrogramConfig.getFakeLastName().isEmpty() ? "Не задана" : NitrogramConfig.getFakeLastName(), false);
-                    } else if (position == proxyRow) {
-                        cell.setTextAndValue("WebSocket / Shadowsocks прокси", "Настройки", false);
-                    } else if (position == installedModsRow) {
-                        cell.setTextAndValue("Управление нативными модами (.so)", "Список модов", false);
-                    } else if (position == materialSpacingRow) {
-                        String v = "Обычный";
-                        int s = ModConfig.getMaterialSectionsSpacing();
-                        if (s == 1) v = "Большой";
-                        else if (s == 2) v = "Огромный";
-                        cell.setTextAndValue("Отступы секций", v, true);
-                    }
-                    break;
-                }
-                case VIEW_TYPE_INFO: {
-                    TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
-                    if (position == fakeInfoRow) {
-                        cell.setText("Визуально подменяет номер телефона (любой формат), юзернеймы и имя в профиле и интерфейсе клиента.");
-                    } else if (position == m3InfoRow) {
-                        cell.setText("Заменяет стандартные ползунки и переключатели приложения на компоненты Material Design 3.");
-                    } else if (position == modsInfoRow) {
-                        cell.setText("Управление сторонними .so модами, хуками и их параметрами.");
-                    } else if (position == adsInfoRow) {
-                        cell.setText("Автоматически скрывает рекламные посты в каналах и сообщения с хештегами рекламы.");
-                    } else if (position == proxyInfoRow) {
-                        cell.setText("Настройка встроенных обходов и прокси-протоколов.");
-                    } else if (position == materialInfoRow) {
-                        cell.setText("Настройки визуала Material 3.");
-                    }
-                    break;
-                }
-            }
-        }
+        return itemLayout;
     }
 }

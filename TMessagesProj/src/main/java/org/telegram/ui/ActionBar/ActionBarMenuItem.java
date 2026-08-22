@@ -2064,6 +2064,11 @@ public class ActionBarMenuItem extends FrameLayout {
             }
         }
         if (searchField != null) {
+            if (org.telegram.messenger.NitrogramConfig.isM3SearchBarEnabled() && searchContainer != null) {
+                int bgColor = androidx.core.graphics.ColorUtils.setAlphaComponent(getThemedColor(Theme.key_actionBarDefaultSearchPlaceholder), 40);
+                searchContainer.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(24), bgColor));
+                searchContainer.setPadding(AndroidUtilities.dp(12), AndroidUtilities.dp(2), AndroidUtilities.dp(8), AndroidUtilities.dp(2));
+            }
             searchField.setCursorColor(getThemedColor(Theme.key_actionBarDefaultSearch));
             searchField.setHintTextColor(getThemedColor(Theme.key_actionBarDefaultSearchPlaceholder));
             searchField.setTextColor(getThemedColor(Theme.key_actionBarDefaultSearch));

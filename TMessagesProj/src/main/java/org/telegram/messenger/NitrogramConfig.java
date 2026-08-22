@@ -988,28 +988,45 @@ public final class NitrogramConfig {
     private static final ArrayList<TL_stars.SavedStarGift> memoryVisualGifts = new ArrayList<>();
 
     public static void addVisualGiftToProfile(int currentAccount, TL_stars.StarGift gift, TL_stars.SavedStarGift savedGift, TL_stars.TL_starGiftUnique uniqueGift) {
-        TL_stars.SavedStarGift sg = new TL_stars.SavedStarGift();
+        TL_stars.TL_savedStarGift sg = new TL_stars.TL_savedStarGift();
         sg.date = (int) (System.currentTimeMillis() / 1000);
-        sg.gift = gift;
+        sg.saved_id = (long) (Math.random() * Long.MAX_VALUE);
+        sg.flags = 0;
         sg.name_hidden = false;
         sg.unsaved = false;
         sg.pinned_to_top = false;
+
+        long clientUserId = UserConfig.getInstance(currentAccount).getClientUserId();
+        TLRPC.TL_peerUser myPeer = new TLRPC.TL_peerUser();
+        myPeer.user_id = clientUserId;
+
         if (savedGift != null) {
-            if (savedGift.gift != null) sg.gift = savedGift.gift;
+            sg.gift = savedGift.gift;
             sg.message = savedGift.message;
             sg.from_id = savedGift.from_id;
         }
+        if (sg.gift == null && gift != null) {
+            sg.gift = gift;
+        }
         if (sg.gift == null && uniqueGift != null) {
             sg.gift = uniqueGift;
+        }
+
+        if (sg.gift instanceof TL_stars.TL_starGiftUnique) {
+            TL_stars.TL_starGiftUnique ug = (TL_stars.TL_starGiftUnique) sg.gift;
+            ug.owner_id = myPeer;
+            ug.owner_name = null;
+            ug.owner_address = null;
         }
 
         memoryVisualGifts.add(0, sg);
 
         try {
             int count = prefs().getInt("visual_gifts_count", 0);
-            SerializedData data = new SerializedData(sg.getObjectSize());
+            SerializedData data = new SerializedData();
+            data.writeInt32(sg.constructor);
             sg.serializeToStream(data);
-            String encoded = android.util.Base64.encodeToString(data.toByteArray(), android.util.Base64.DEFAULT);
+            String encoded = android.util.Base64.encodeToString(data.toByteArray(), android.util.Base64.NO_WRAP);
             data.cleanup();
             prefs().edit().putString("visual_gift_" + count, encoded).putInt("visual_gifts_count", count + 1).apply();
         } catch (Exception e) {
@@ -1017,22 +1034,33 @@ public final class NitrogramConfig {
         }
 
         try {
-            org.telegram.ui.Stars.StarsController.getInstance(currentAccount).invalidateProfileGifts(UserConfig.getInstance(currentAccount).getClientUserId());
+            org.telegram.ui.Stars.StarsController.getInstance(currentAccount).invalidateProfileGifts(clientUserId);
         } catch (Exception ignore) {}
     }
 
     public static ArrayList<TL_stars.SavedStarGift> getVisualGifts(int currentAccount) {
         if (memoryVisualGifts.isEmpty()) {
+            long clientUserId = UserConfig.getInstance(currentAccount).getClientUserId();
+            TLRPC.TL_peerUser myPeer = new TLRPC.TL_peerUser();
+            myPeer.user_id = clientUserId;
+
             int count = prefs().getInt("visual_gifts_count", 0);
             for (int i = 0; i < count; i++) {
                 String encoded = prefs().getString("visual_gift_" + i, null);
                 if (encoded != null) {
                     try {
-                        byte[] bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT);
+                        byte[] bytes = android.util.Base64.decode(encoded, android.util.Base64.NO_WRAP);
                         SerializedData data = new SerializedData(bytes);
-                        TL_stars.SavedStarGift gift = TL_stars.SavedStarGift.TLdeserialize(data, data.readInt32(false), false);
+                        int constructor = data.readInt32(false);
+                        TL_stars.SavedStarGift gift = TL_stars.SavedStarGift.TLdeserialize(data, constructor, false);
                         data.cleanup();
                         if (gift != null) {
+                            if (gift.gift instanceof TL_stars.TL_starGiftUnique) {
+                                TL_stars.TL_starGiftUnique ug = (TL_stars.TL_starGiftUnique) gift.gift;
+                                ug.owner_id = myPeer;
+                                ug.owner_name = null;
+                                ug.owner_address = null;
+                            }
                             memoryVisualGifts.add(gift);
                         }
                     } catch (Exception e) {
@@ -1046,6 +1074,32 @@ public final class NitrogramConfig {
 
     public static ArrayList<SpoofedAccountItem> getSpoofedAccounts() {
         return spoofedAccounts;
+    }
+
+    public static final int AVATAR_SHAPE_CIRCLE = 0;
+    public static final int AVATAR_SHAPE_SQUIRCLE = 1;
+    public static final int AVATAR_SHAPE_SQUARE = 2;
+    public static final int AVATAR_SHAPE_TEARDROP = 3;
+    public static final int AVATAR_SHAPE_CUT = 4;
+    public static final int AVATAR_SHAPE_HEXAGON = 5;
+
+    public static final String KEY_AVATAR_SHAPE = "avatar_shape_m3";
+    public static final String KEY_M3_SEARCH_BAR = "m3_search_bar_enabled";
+
+    public static int getAvatarShape() {
+        return prefs().getInt(KEY_AVATAR_SHAPE, AVATAR_SHAPE_CIRCLE);
+    }
+
+    public static void setAvatarShape(int shape) {
+        prefs().edit().putInt(KEY_AVATAR_SHAPE, shape).apply();
+    }
+
+    public static boolean isM3SearchBarEnabled() {
+        return prefs().getBoolean(KEY_M3_SEARCH_BAR, true);
+    }
+
+    public static void setM3SearchBarEnabled(boolean enabled) {
+        prefs().edit().putBoolean(KEY_M3_SEARCH_BAR, enabled).apply();
     }
 
     public static void setVisualChannelOwner(long dialogId, boolean isOwner) {
