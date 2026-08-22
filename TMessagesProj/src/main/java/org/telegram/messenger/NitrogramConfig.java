@@ -1283,6 +1283,51 @@ public final class NitrogramConfig {
     public static final int SPEED_BOOSTER_ULTRA = 2;
     private static final String KEY_SPEED_BOOSTER = "speed_booster_mode";
 
+    private static final String KEY_DISABLE_NUMBER_ROUNDING = "disable_number_rounding";
+    private static final String KEY_SHOW_SECONDS_IN_TIME = "show_seconds_in_time";
+    private static final String KEY_IN_APP_VIBRATION = "in_app_vibration";
+    private static final String KEY_ZALGO_FILTER = "zalgo_filter";
+
+    public static boolean isDisableNumberRounding() {
+        return prefs().getBoolean(KEY_DISABLE_NUMBER_ROUNDING, false);
+    }
+
+    public static void setDisableNumberRounding(boolean value) {
+        prefs().edit().putBoolean(KEY_DISABLE_NUMBER_ROUNDING, value).apply();
+    }
+
+    public static boolean isShowSecondsInTime() {
+        return prefs().getBoolean(KEY_SHOW_SECONDS_IN_TIME, false);
+    }
+
+    public static void setShowSecondsInTime(boolean value) {
+        prefs().edit().putBoolean(KEY_SHOW_SECONDS_IN_TIME, value).apply();
+        LocaleController.getInstance().recreateFormatters();
+    }
+
+    public static boolean isInAppVibrationEnabled() {
+        return prefs().getBoolean(KEY_IN_APP_VIBRATION, true);
+    }
+
+    public static void setInAppVibrationEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_IN_APP_VIBRATION, value).apply();
+    }
+
+    public static boolean isZalgoFilterEnabled() {
+        return prefs().getBoolean(KEY_ZALGO_FILTER, true);
+    }
+
+    public static void setZalgoFilterEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_ZALGO_FILTER, value).apply();
+    }
+
+    public static String filterZalgo(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        return text.replaceAll("[\\u0300-\\u036F\\u1AB0-\\u1AFF\\u1DC0-\\u1DFF\\u20D0-\\u20FF\\uFE20-\\uFE2F]", "");
+    }
+
     public static int getSpeedBoosterMode() {
         return prefs().getInt(KEY_SPEED_BOOSTER, SPEED_BOOSTER_OFF);
     }

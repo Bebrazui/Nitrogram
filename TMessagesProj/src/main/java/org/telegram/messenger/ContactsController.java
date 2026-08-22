@@ -3053,6 +3053,9 @@ public class ContactsController extends BaseController {
         }*/
         if (firstName != null) {
             firstName = firstName.trim();
+            if (org.telegram.messenger.NitrogramConfig.isZalgoFilterEnabled()) {
+                firstName = org.telegram.messenger.NitrogramConfig.filterZalgo(firstName);
+            }
         }
         if (firstName != null && lastName == null && maxLength > 0 && firstName.contains(" ") ) {
             int i = firstName.indexOf(" ");
@@ -3061,6 +3064,9 @@ public class ContactsController extends BaseController {
         }
         if (lastName != null) {
             lastName = lastName.trim();
+            if (org.telegram.messenger.NitrogramConfig.isZalgoFilterEnabled()) {
+                lastName = org.telegram.messenger.NitrogramConfig.filterZalgo(lastName);
+            }
         }
         StringBuilder result = new StringBuilder((firstName != null ? firstName.length() : 0) + (lastName != null ? lastName.length() : 0) + 1);
         if (LocaleController.nameDisplayOrder == 1) {

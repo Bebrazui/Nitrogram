@@ -29,6 +29,10 @@ public final class XposedBridge {
 
         HookManager.init();
 
+        if (hookMethod instanceof Method) {
+            HookManager.registerUniversalHook(hookMethod.getDeclaringClass(), hookMethod.getName(), callback);
+        }
+
         try {
             Class<?> pineClass = Class.forName("top.canyie.pine.Pine");
             Class<?> methodHookClass = Class.forName("top.canyie.pine.callback.MethodHook");

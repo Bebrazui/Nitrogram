@@ -80,6 +80,7 @@ dependencies {
     implementation 'com.google.android.recaptcha:recaptcha:18.7.1'
 
     implementation 'top.canyie.pine:core:0.2.8'
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:4.3'
 
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 }

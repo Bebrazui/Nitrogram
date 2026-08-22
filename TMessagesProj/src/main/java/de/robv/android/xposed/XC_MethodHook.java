@@ -20,6 +20,14 @@ public abstract class XC_MethodHook {
     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
     }
 
+    public void callBefore(MethodHookParam param) throws Throwable {
+        beforeHookedMethod(param);
+    }
+
+    public void callAfter(MethodHookParam param) throws Throwable {
+        afterHookedMethod(param);
+    }
+
     public static class MethodHookParam {
         public Member method;
         public Object thisObject;

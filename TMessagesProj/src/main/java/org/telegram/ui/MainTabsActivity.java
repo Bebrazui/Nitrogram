@@ -285,7 +285,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         showAccountChangeHint();
         if (materialNav && getContext() instanceof Activity) {
-            ((Activity) getContext()).getWindow().setNavigationBarColor(0);
+            ((Activity) getContext()).getWindow().setNavigationBarColor(getMaterialNavColor());
         }
     }
 
@@ -391,16 +391,17 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                     .setShadowLayer(0, 0, 0)
                     .setStrokeWidth(0, 0)
                     .build();
-            tabsViewBackground = iBlur3FactoryNav.create(tabsView, m3Provider);
-            tabsViewBackground.setRadius(0);
-            tabsViewBackground.setPadding(0);
-            tabsView.setBackground(tabsViewBackground);
-
             tabsView.setPadding(0, 0, 0, 0);
             tabsView.setMaxWidth(Integer.MAX_VALUE);
             tabsViewWrapper = new FrameLayout(context);
             tabsViewWrapper.setOnClickListener(v -> {});
             tabsViewWrapper.setClipToPadding(false);
+
+            tabsViewBackground = iBlur3FactoryNav.create(tabsViewWrapper, m3Provider);
+            tabsViewBackground.setRadius(0);
+            tabsViewBackground.setPadding(0);
+            tabsViewWrapper.setBackground(tabsViewBackground);
+
             tabsViewWrapper.addView(tabsView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 58, Gravity.TOP));
             contentView.setClipChildren(false);
             contentView.setPadding(contentView.getPaddingLeft(), contentView.getPaddingTop(), contentView.getPaddingRight(), 0);
@@ -992,13 +993,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             }
             if (materialNav) {
                 final int navBarTotalHeight = dp(58) + navigationBarHeight;
-                bottomMargin = Math.max(bottomMargin, navBarTotalHeight + (isUpdateLayoutVisible ? updateLayoutHeight : 0));
                 ViewGroup.LayoutParams wrapperLp = tabsViewWrapper.getLayoutParams();
                 if (wrapperLp != null && wrapperLp.height != navBarTotalHeight) {
                     wrapperLp.height = navBarTotalHeight;
                     tabsViewWrapper.setLayoutParams(wrapperLp);
                 }
-                tabsViewWrapper.setBackgroundColor(getMaterialNavColor());
             }
             lp = (ViewGroup.MarginLayoutParams) viewPager.getLayoutParams();
             if (lp.bottomMargin != bottomMargin || lp.leftMargin != systemInsets.left || lp.rightMargin != systemInsets.right) {
@@ -1148,7 +1147,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         final boolean isUpdateLayoutVisible = updateLayoutWrapper.isUpdateLayoutVisible();
         final int updateLayoutHeight = isUpdateLayoutVisible ? dp(UpdateLayoutWrapper.HEIGHT) : 0;
         final int normalY = -(updateLayoutHeight);
-        final int hiddenY = normalY + dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS) + navigationBarHeight + dp(30);
+        final int navHeight = materialNav ? (dp(58) + navigationBarHeight + dp(24)) : (dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS) + navigationBarHeight + dp(30));
+        final int hiddenY = normalY + navHeight;
 
         final float factor = animatorTabsVisible.getFloatValue();
         final float scale = lerp(0.85f, 1f, factor);
@@ -1158,6 +1158,8 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsView.setEnabled(factor > 0.9f);
         tabsView.setAlpha(factor);
         tabsView.setVisibility(factor > 0 ? View.VISIBLE : View.GONE);
+        tabsViewWrapper.setAlpha(factor);
+        tabsViewWrapper.setVisibility(factor > 0 ? View.VISIBLE : View.GONE);
     }
 
     private void checkUi_callTabVisible(boolean callTabsVisible, boolean animated) {
@@ -1330,7 +1332,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     @Override
     public int getNavigationBarColor() {
         if (materialNav) {
-            return 0;
+            return getMaterialNavColor();
         }
         return super.getNavigationBarColor();
     }

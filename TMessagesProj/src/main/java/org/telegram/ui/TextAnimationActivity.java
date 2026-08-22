@@ -342,4 +342,9 @@ public class TextAnimationActivity extends BaseFragment {
             }
         }
     }
+
+    @Override
+    public int getNavigationBarColor() {
+        return Theme.getColor(Theme.key_windowBackgroundGray, getResourceProvider());
+    }
 }

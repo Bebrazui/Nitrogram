@@ -6062,6 +6062,8 @@ public class MessageObject {
 
         if (messageText == null) {
             messageText = "";
+        } else if (org.telegram.messenger.NitrogramConfig.isZalgoFilterEnabled() && messageText.length() > 0) {
+            messageText = org.telegram.messenger.NitrogramConfig.filterZalgo(messageText.toString());
         }
 
         isEmbedVideoCached = null;

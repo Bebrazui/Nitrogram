@@ -101,6 +101,13 @@ public class ModCategoryActivity extends BaseFragment {
                 items.add(new Item(7, 1, "Имя", NitrogramConfig.getFakeFirstName().isEmpty() ? "Не задано" : NitrogramConfig.getFakeFirstName(), false, true));
                 items.add(new Item(8, 1, "Фамилия", NitrogramConfig.getFakeLastName().isEmpty() ? "Не задана" : NitrogramConfig.getFakeLastName(), false, false));
                 items.add(new Item(103, 3, "Подменяет имя, телефон и юзернеймы в интерфейсе клиента."));
+
+                items.add(new Item(104, 2, "Основные"));
+                items.add(new Item(9, 0, "Отключить округление чисел", "1.23K → 1,234", NitrogramConfig.isDisableNumberRounding(), true));
+                items.add(new Item(10, 0, "Форматировать время с секундами", "12:34 → 12:34:56", NitrogramConfig.isShowSecondsInTime(), true));
+                items.add(new Item(11, 0, "Вибрация в приложении", null, NitrogramConfig.isInAppVibrationEnabled(), true));
+                items.add(new Item(12, 0, "Фильтр \"Zalgo\"", null, NitrogramConfig.isZalgoFilterEnabled(), false));
+                items.add(new Item(105, 3, "Убирает искажающие текст символы \"Zalgo\" в именах и сообщениях."));
                 break;
 
             case CATEGORY_APPEARANCE:
@@ -133,8 +140,9 @@ public class ModCategoryActivity extends BaseFragment {
             case CATEGORY_PLUGINS:
                 items.add(new Item(400, 2, "Сеть и расширения"));
                 items.add(new Item(41, 1, "WebSocket / Shadowsocks прокси", "Настройки", false, true));
-                items.add(new Item(42, 1, "Управление нативными модами (.so)", "Список", false, false));
-                items.add(new Item(401, 3, "Подключение прокси и нативных C++ библиотек."));
+                items.add(new Item(42, 1, "Управление нативными модами (.so)", "Список", false, true));
+                items.add(new Item(43, 1, "🧪 Проверить Mod API и Pine хуки", "Запуск теста", false, false));
+                items.add(new Item(401, 3, "Тестирует нативный движок хуков Pine, перехват методов и выводит подробный отчёт в Logcat (tag: NitroModTest)."));
                 break;
 
             case CATEGORY_OTHER:
@@ -258,6 +266,22 @@ public class ModCategoryActivity extends BaseFragment {
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
+        } else if (item.id == 9) {
+            boolean v = !NitrogramConfig.isDisableNumberRounding();
+            NitrogramConfig.setDisableNumberRounding(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 10) {
+            boolean v = !NitrogramConfig.isShowSecondsInTime();
+            NitrogramConfig.setShowSecondsInTime(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 11) {
+            boolean v = !NitrogramConfig.isInAppVibrationEnabled();
+            NitrogramConfig.setInAppVibrationEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 12) {
+            boolean v = !NitrogramConfig.isZalgoFilterEnabled();
+            NitrogramConfig.setZalgoFilterEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
         } else if (item.id == 21) {
             presentFragment(new AvatarShapeActivity());
         } else if (item.id == 22) {
@@ -353,6 +377,14 @@ public class ModCategoryActivity extends BaseFragment {
             presentFragment(new WsProxySettingsActivity());
         } else if (item.id == 42) {
             presentFragment(new InstalledModsActivity());
+        } else if (item.id == 43) {
+            String testReport = org.telegram.messenger.HookManager.runApiSelfTest();
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("Тест Mod API & Pine Hooks");
+            builder.setMessage(testReport);
+            builder.setPositiveButton("OK", null);
+            showDialog(builder.create());
+            return;
         } else if (item.id == 51) {
             Toast.makeText(getParentActivity(), "Кэш модов очищен", Toast.LENGTH_SHORT).show();
         } else if (item.id == 52) {
@@ -453,7 +485,11 @@ public class ModCategoryActivity extends BaseFragment {
             switch (item.type) {
                 case 0: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
-                    cell.setTextAndCheck(item.title, item.checked, item.divider);
+                    if (item.value != null) {
+                        cell.setTextAndValueAndCheck(item.title, item.value, item.checked, false, item.divider);
+                    } else {
+                        cell.setTextAndCheck(item.title, item.checked, item.divider);
+                    }
                     break;
                 }
                 case 1: {
@@ -477,5 +513,10 @@ public class ModCategoryActivity extends BaseFragment {
                 }
             }
         }
+    }
+
+    @Override
+    public int getNavigationBarColor() {
+        return Theme.getColor(Theme.key_windowBackgroundGray, getResourceProvider());
     }
 }

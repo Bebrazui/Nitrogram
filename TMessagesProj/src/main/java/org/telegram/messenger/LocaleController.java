@@ -73,6 +73,9 @@ public class LocaleController {
 
     private volatile FastDateFormat formatterDay;
     public FastDateFormat getFormatterDay() {
+        if (org.telegram.messenger.NitrogramConfig.isShowSecondsInTime()) {
+            return getFormatterDayWithSeconds();
+        }
         if (formatterDay == null) {
             synchronized (this) {
                 if (formatterDay == null) {
@@ -2940,6 +2943,12 @@ public class LocaleController {
     }
 
     public static String formatShortNumber(int number, int[] rounded) {
+        if (org.telegram.messenger.NitrogramConfig.isDisableNumberRounding()) {
+            if (rounded != null) {
+                rounded[0] = number;
+            }
+            return formatNumber(number, ' ');
+        }
         StringBuilder K = new StringBuilder();
         int lastDec = 0;
         int KCount = 0;

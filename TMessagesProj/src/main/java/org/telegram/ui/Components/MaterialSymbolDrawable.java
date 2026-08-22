@@ -58,23 +58,7 @@ public class MaterialSymbolDrawable extends Drawable {
     }
 
     private void normalizePath() {
-        android.graphics.RectF bounds = new android.graphics.RectF();
-        originalPath.computeBounds(bounds, true);
-        if (bounds.width() <= 0 || bounds.height() <= 0) {
-            normalizedPath.set(originalPath);
-            return;
-        }
-        Matrix normMatrix = new Matrix();
-        float maxDim = Math.max(bounds.width(), bounds.height());
-        float scale = 19.2f / maxDim;
-        normMatrix.postTranslate(-bounds.left, -bounds.top);
-        normMatrix.postScale(scale, scale);
-        float scaledW = bounds.width() * scale;
-        float scaledH = bounds.height() * scale;
-        normMatrix.postTranslate((24f - scaledW) / 2f, (24f - scaledH) / 2f);
-
-        normalizedPath.reset();
-        originalPath.transform(normMatrix, normalizedPath);
+        normalizedPath.set(originalPath);
     }
 
     public MaterialSymbolDrawable setSizeDp(int widthDp, int heightDp) {

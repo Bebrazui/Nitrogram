@@ -7483,6 +7483,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             searchAnimator = null;
         }
         searchIsShowed = show;
+        checkUi_mainTabsVisible();
         blur3_InvalidateBlur();
         if (show) {
             boolean onlyDialogsAdapter;
@@ -14037,7 +14038,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     }
 
     private void checkUi_mainTabsVisible() {
-        final boolean mainTabsVisible = !searching && (blurredView == null || blurredView.getBackground() == null || blurredView.getAlpha() < 0.01f || blurredView.getVisibility() == View.GONE);
+        final boolean mainTabsVisible = !searching && !searchIsShowed;
         if (mainTabsActivityController != null) {
             mainTabsActivityController.setTabsVisible(mainTabsVisible);
         }
