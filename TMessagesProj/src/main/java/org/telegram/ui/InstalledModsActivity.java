@@ -27,6 +27,9 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.Switch;
 
+import org.telegram.ui.ActionBar.ActionBarMenu;
+import android.os.Environment;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,11 +53,15 @@ public class InstalledModsActivity extends BaseFragment {
         actionBar.setBackButtonDrawable(new BackDrawable(false));
         actionBar.setAllowOverlayTitle(true);
         actionBar.setTitle("Установленные моды");
+        ActionBarMenu menu = actionBar.createMenu();
+        menu.addItem(1, R.drawable.msg_add);
         actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
             @Override
             public void onItemClick(int id) {
                 if (id == -1) {
                     finishFragment();
+                } else if (id == 1) {
+                    onAddModClick();
                 }
             }
         });
@@ -88,6 +95,57 @@ public class InstalledModsActivity extends BaseFragment {
         boolean empty = mods.isEmpty();
         emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         listView.setVisibility(empty ? View.GONE : View.VISIBLE);
+    }
+
+    private void onAddModClick() {
+        File dl = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        List<File> candidates = new ArrayList<>();
+        if (dl != null && dl.exists()) {
+            File[] files = dl.listFiles((d, name) -> name.endsWith(".so"));
+            if (files != null) {
+                for (File f : files) candidates.add(f);
+            }
+            File sub = new File(dl, "tg-streaks");
+            if (sub.exists()) {
+                File[] subFiles = sub.listFiles((d, name) -> name.endsWith(".so"));
+                if (subFiles != null) {
+                    for (File f : subFiles) candidates.add(f);
+                }
+            }
+        }
+        if (candidates.isEmpty()) {
+            Toast.makeText(getParentActivity(), "Файлы .so в папке Загрузки не найдены", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] titles = new String[candidates.size()];
+        for (int i = 0; i < candidates.size(); i++) {
+            ModManager.ModMeta meta = ModManager.parseMeta(candidates.get(i));
+            titles[i] = (meta != null && meta.name != null ? meta.name : candidates.get(i).getName()) + " (" + candidates.get(i).getName() + ")";
+        }
+        AlertDialog.Builder b = new AlertDialog.Builder(getParentActivity());
+        b.setTitle("Установить мод из Загрузок");
+        b.setItems(titles, (dialog, which) -> {
+            File chosen = candidates.get(which);
+            ModManager.ModMeta meta = ModManager.parseMeta(chosen);
+            if (meta != null) {
+                File installed = ModManager.installMod(chosen, meta);
+                if (installed != null) {
+                    ModManager.setEnabled(meta.id, true);
+                    boolean ok = ModManager.loadNative(installed);
+                    if (ok) {
+                        ModManager.registerLoadedMod(meta.id);
+                    }
+                    mods = ModManager.getInstalledMods();
+                    listAdapter.notifyDataSetChanged();
+                    updateVisibility();
+                    Toast.makeText(getParentActivity(), "Мод «" + meta.name + "» установлен и запущен!", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(getParentActivity(), "Файл не содержит метаданных мода Nitrogram", Toast.LENGTH_SHORT).show();
+            }
+        });
+        b.setNegativeButton("Отмена", null);
+        showDialog(b.create());
     }
 
     void onToggle(ModManager.ModMeta m, boolean checked) {
