@@ -745,6 +745,54 @@ public class SendGiftSheet extends BottomSheetWithRecyclerListView implements No
             button.setLoading(false);
             return;
         }
+        if (org.telegram.messenger.NitrogramConfig.getFakeStarsAmount() >= 0) {
+            TLRPC.TL_messageService message = new TLRPC.TL_messageService();
+            message.dialog_id = dialogId;
+            message.id = UserConfig.getInstance(currentAccount).getNewMessageId();
+            message.local_id = message.id;
+            message.date = (int) (System.currentTimeMillis() / 1000);
+            TLRPC.TL_peerUser myPeer = new TLRPC.TL_peerUser();
+            myPeer.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
+            message.from_id = myPeer;
+            message.peer_id = MessagesController.getInstance(currentAccount).getPeer(dialogId);
+            message.out = true;
+            int months = 3;
+            if (this.action != null && this.action.months > 0) {
+                months = this.action.months;
+            } else if (premiumTier != null && premiumTier.getMonths() > 0) {
+                months = premiumTier.getMonths();
+            }
+            if (this.action instanceof TLRPC.TL_messageActionGiftCode) {
+                TLRPC.TL_messageActionGiftCode codeAction = (TLRPC.TL_messageActionGiftCode) this.action;
+                codeAction.months = months;
+                codeAction.message = getMessage();
+                message.action = codeAction;
+            } else {
+                TLRPC.TL_messageActionGiftPremium giftAction = new TLRPC.TL_messageActionGiftPremium();
+                giftAction.currency = "USD";
+                giftAction.amount = 399;
+                giftAction.months = months;
+                giftAction.message = getMessage();
+                message.action = giftAction;
+            }
+
+            ArrayList<MessageObject> msgs = new ArrayList<>();
+            msgs.add(new MessageObject(currentAccount, message, false, false));
+            MessagesController.getInstance(currentAccount).updateInterfaceWithMessages(dialogId, msgs, 0);
+            org.telegram.messenger.MessagesStorage.getInstance(currentAccount).putMessages(new ArrayList<>(java.util.Collections.singletonList(message)), true, true, false, 0, false, 0, 0);
+
+            if (closeParentSheet != null) {
+                closeParentSheet.run();
+            }
+            AndroidUtilities.hideKeyboard(messageEdit);
+            dismiss();
+            if (LaunchActivity.instance != null && LaunchActivity.instance.getFireworksOverlay() != null) {
+                LaunchActivity.instance.getFireworksOverlay().start(true);
+            }
+            AndroidUtilities.runOnUIThread(() -> PremiumPreviewGiftSentBottomSheet.show(new ArrayList<>(java.util.Arrays.asList(user))), 250);
+            return;
+        }
+
         final Object option;
         if (useStars && premiumTier.isStarsPaymentAvailable()) {
             option = premiumTier.getStarsOption();

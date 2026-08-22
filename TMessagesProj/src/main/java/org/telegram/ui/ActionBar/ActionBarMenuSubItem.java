@@ -211,7 +211,16 @@ public class ActionBarMenuSubItem extends FrameLayout {
                 imageView.setImageDrawable(iconDrawable);
             } else {
                 iconResId = icon;
-                imageView.setImageResource(icon);
+                if (org.telegram.messenger.NitrogramConfig.isMaterialSymbolsRoundedEnabled()) {
+                    Drawable d = org.telegram.messenger.MaterialSymbolsHelper.get(icon);
+                    if (d != null) {
+                        imageView.setImageDrawable(d);
+                    } else {
+                        imageView.setImageResource(icon);
+                    }
+                } else {
+                    imageView.setImageResource(icon);
+                }
             }
             imageView.setVisibility(VISIBLE);
             textView.setPadding(checkViewLeft ? (checkView != null ? dp(43) : 0) : dp(icon != 0 || iconDrawable != null ? 43 : 0), 0, checkViewLeft ? dp(icon != 0 || iconDrawable != null ? 43 : 0) : (checkView != null ? dp(43) : 0), 0);

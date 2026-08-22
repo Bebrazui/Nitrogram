@@ -1721,6 +1721,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
         final ArrayList<TLRPC.Document> gifts = new ArrayList<>();
         for (int i = 0; gifts.size() < 3 && i < list.gifts.size(); ++i) {
             final TL_stars.SavedStarGift gift = list.gifts.get(i);
+            if (gift == null || gift.gift == null) continue;
             final TLRPC.Document doc = gift.gift.getDocument();
             if (doc == null) continue;
             if (giftsIds.contains(doc.id)) continue;
@@ -1750,6 +1751,7 @@ public class ProfileGiftsContainer extends FrameLayout implements NotificationCe
         final HashSet<Long> giftsIds = new HashSet<>();
         for (int i = 0; giftsCount < 3 && i < list.gifts.size(); ++i) {
             final TL_stars.SavedStarGift gift = list.gifts.get(i);
+            if (gift == null || gift.gift == null) continue;
             final TLRPC.Document doc = gift.gift.getDocument();
             if (doc == null) continue;
             giftsIds.add(doc.id);

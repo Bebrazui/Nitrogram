@@ -389,8 +389,17 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         return rootAnimatedInsetsListener;
     }
 
+    private android.content.res.Resources customResources;
+
+    @Override
+    public android.content.res.Resources getResources() {
+        if (customResources == null) {
+            customResources = new org.telegram.messenger.NitrogramResources(super.getResources());
+        }
+        return customResources;
+    }
+
     private FrameMetricsOverlayView frameMetricsOverlayView;
-    // private RefreshRateController refreshRateController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -408,6 +417,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
 
         instance = this;
         ApplicationLoader.postInitApplication();
+        org.telegram.messenger.TextAnimationManager.init();
         AndroidUtilities.checkDisplaySize(this, getResources().getConfiguration());
         currentAccount = UserConfig.selectedAccount;
         registerReceiver(batteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));

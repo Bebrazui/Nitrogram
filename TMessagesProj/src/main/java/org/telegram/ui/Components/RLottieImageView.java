@@ -267,6 +267,13 @@ public class RLottieImageView extends ImageView {
 
     @Override
     public void setImageResource(int resId) {
+        if (org.telegram.messenger.NitrogramConfig.isMaterialSymbolsRoundedEnabled()) {
+            android.graphics.drawable.Drawable d = org.telegram.messenger.MaterialSymbolsHelper.get(resId);
+            if (d != null) {
+                setImageDrawable(d);
+                return;
+            }
+        }
         super.setImageResource(resId);
         drawable = null;
     }

@@ -964,15 +964,14 @@ public final class NitrogramConfig {
         setFakeIdentityEnabled(false);
         fakePhoto = null;
         fakeBio = "";
-        for (int a = 1; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
-            if (prefs().getBoolean("is_visual_slot_" + a, false)) {
+        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            UserConfig.getInstance(a).reloadCurrentUser();
+            if (a > 0 && prefs().getBoolean("is_visual_slot_" + a, false)) {
                 UserConfig.getInstance(a).clearConfig();
                 prefs().edit().putBoolean("is_visual_slot_" + a, false).apply();
             }
         }
-        AndroidUtilities.runOnUIThread(() -> {
-            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.mainUserInfoChanged);
-        });
+        notifyIdentityChanged();
     }
 
     public static final String KEY_FAKE_STARS_AMOUNT = "fake_stars_amount";
@@ -1166,10 +1165,29 @@ public final class NitrogramConfig {
         prefs().edit().putBoolean(KEY_USE_MATERIAL3_COMPONENTS, value).apply();
     }
 
+    public static final String KEY_VOICE_EFFECT = "voice_effect";
+
+    public static int getVoiceEffect() {
+        return prefs().getInt(KEY_VOICE_EFFECT, 0);
+    }
+
+    public static void setVoiceEffect(int effect) {
+        prefs().edit().putInt(KEY_VOICE_EFFECT, effect).apply();
+    }
+
     public static void applyFakeIdentity(TLRPC.User user) {
         if (user == null || !isFakeIdentityEnabled()) return;
-        long myId = UserConfig.getInstance(UserConfig.selectedAccount).getClientUserId();
-        if (user.id == myId || user.self) {
+        boolean matches = user.self;
+        if (!matches) {
+            for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                UserConfig uc = UserConfig.getInstance(a);
+                if (uc != null && uc.isClientActivated() && user.id == uc.getClientUserId()) {
+                    matches = true;
+                    break;
+                }
+            }
+        }
+        if (matches) {
             String phone = getFakePhone();
             if (phone != null && !phone.isEmpty()) {
                 user.phone = phone.replaceAll("[^0-9+]", "");
@@ -1207,6 +1225,81 @@ public final class NitrogramConfig {
             if (fakePhoto != null) {
                 user.photo = fakePhoto;
             }
+        }
+    }
+
+    public static void notifyIdentityChanged() {
+        AndroidUtilities.runOnUIThread(() -> {
+            for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                UserConfig uc = UserConfig.getInstance(a);
+                if (uc != null && uc.isClientActivated()) {
+                    TLRPC.User cur = uc.getCurrentUser();
+                    if (cur != null) {
+                        if (isFakeIdentityEnabled()) {
+                            applyFakeIdentity(cur);
+                        } else {
+                            uc.reloadCurrentUser();
+                        }
+                    }
+                    NotificationCenter.getInstance(a).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_ALL);
+                }
+            }
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.mainUserInfoChanged);
+        });
+    }
+
+    private static final String KEY_VISUAL_PREMIUM = "visual_premium_enabled";
+
+    public static boolean isVisualPremiumEnabled() {
+        return prefs().getBoolean(KEY_VISUAL_PREMIUM, false);
+    }
+
+    public static void setVisualPremiumEnabled(boolean enabled) {
+        prefs().edit().putBoolean(KEY_VISUAL_PREMIUM, enabled).apply();
+    }
+
+    private static final String KEY_MATERIAL_SYMBOLS_ROUNDED = "material_symbols_rounded_enabled";
+
+    public static boolean isMaterialSymbolsRoundedEnabled() {
+        return prefs().getBoolean(KEY_MATERIAL_SYMBOLS_ROUNDED, false);
+    }
+
+    public static void setMaterialSymbolsRoundedEnabled(boolean enabled) {
+        prefs().edit().putBoolean(KEY_MATERIAL_SYMBOLS_ROUNDED, enabled).apply();
+        HookManager.initMaterialSymbolsHook();
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                org.telegram.ui.ActionBar.Theme.reloadAllResources(ApplicationLoader.applicationContext);
+            } catch (Throwable ignore) {
+            }
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.themeAccentListUpdated);
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.needSetDayNightTheme, org.telegram.ui.ActionBar.Theme.getActiveTheme(), false, null, -1);
+            notifyDialogsUiChanged();
+        });
+    }
+
+    public static final int SPEED_BOOSTER_OFF = 0;
+    public static final int SPEED_BOOSTER_FAST = 1;
+    public static final int SPEED_BOOSTER_ULTRA = 2;
+    private static final String KEY_SPEED_BOOSTER = "speed_booster_mode";
+
+    public static int getSpeedBoosterMode() {
+        return prefs().getInt(KEY_SPEED_BOOSTER, SPEED_BOOSTER_OFF);
+    }
+
+    public static void setSpeedBoosterMode(int mode) {
+        prefs().edit().putInt(KEY_SPEED_BOOSTER, Math.max(SPEED_BOOSTER_OFF, Math.min(SPEED_BOOSTER_ULTRA, mode))).apply();
+    }
+
+    public static String getSpeedBoosterName(int mode) {
+        switch (mode) {
+            case SPEED_BOOSTER_FAST:
+                return "Быстро (Fast — 8 потоков)";
+            case SPEED_BOOSTER_ULTRA:
+                return "Ультра (Ultra — 16 потоков, 1MB)";
+            case SPEED_BOOSTER_OFF:
+            default:
+                return "Обычная (Выкл)";
         }
     }
 

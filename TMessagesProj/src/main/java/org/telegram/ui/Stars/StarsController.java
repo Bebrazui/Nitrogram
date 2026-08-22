@@ -2632,6 +2632,57 @@ public class StarsController {
             return;
         }
 
+        if (org.telegram.messenger.NitrogramConfig.getFakeStarsAmount() >= 0) {
+            long curFake = org.telegram.messenger.NitrogramConfig.getFakeStarsAmount();
+            long price = gift.stars;
+            if (curFake > 0) {
+                org.telegram.messenger.NitrogramConfig.setFakeStarsAmount(Math.max(0, curFake - price));
+            }
+            TL_stars.TL_savedStarGift sg = new TL_stars.TL_savedStarGift();
+            sg.date = (int) (System.currentTimeMillis() / 1000);
+            sg.saved_id = (long) (Math.random() * Long.MAX_VALUE);
+            sg.gift = gift;
+            sg.message = text;
+            if (dialogId == 0 || dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
+                org.telegram.messenger.NitrogramConfig.addVisualGiftToProfile(currentAccount, gift, sg, gift instanceof TL_stars.TL_starGiftUnique ? (TL_stars.TL_starGiftUnique) gift : null);
+            } else {
+                TLRPC.TL_messageService message = new TLRPC.TL_messageService();
+                message.dialog_id = dialogId;
+                message.id = UserConfig.getInstance(currentAccount).getNewMessageId();
+                message.local_id = message.id;
+                message.date = (int) (System.currentTimeMillis() / 1000);
+                TLRPC.TL_peerUser myPeer = new TLRPC.TL_peerUser();
+                myPeer.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
+                message.from_id = myPeer;
+                message.peer_id = MessagesController.getInstance(currentAccount).getPeer(dialogId);
+                message.out = true;
+                if (gift instanceof TL_stars.TL_starGiftUnique) {
+                    TLRPC.TL_messageActionStarGiftUnique giftAction = new TLRPC.TL_messageActionStarGiftUnique();
+                    giftAction.gift = (TL_stars.TL_starGiftUnique) gift;
+                    giftAction.can_export_at = (int) (System.currentTimeMillis() / 1000) + 86400 * 30;
+                    giftAction.transfer_stars = 0;
+                    message.action = giftAction;
+                } else {
+                    TLRPC.TL_messageActionStarGift giftAction = new TLRPC.TL_messageActionStarGift();
+                    giftAction.gift = gift;
+                    giftAction.message = text;
+                    giftAction.name_hidden = anonymous;
+                    message.action = giftAction;
+                }
+                ArrayList<MessageObject> msgs = new ArrayList<>();
+                msgs.add(new MessageObject(currentAccount, message, false, false));
+                MessagesController.getInstance(currentAccount).updateInterfaceWithMessages(dialogId, msgs, 0);
+                MessagesStorage.getInstance(currentAccount).putMessages(new ArrayList<>(java.util.Collections.singletonList(message)), true, true, false, 0, false, 0, 0);
+            }
+            if (whenDone != null) {
+                whenDone.run(true, null);
+            }
+            if (LaunchActivity.instance != null && LaunchActivity.instance.getFireworksOverlay() != null) {
+                LaunchActivity.instance.getFireworksOverlay().start(true);
+            }
+            return;
+        }
+
         if (!balanceAvailable()) {
             getBalance(() -> {
                 if (!balanceAvailable()) {
@@ -2688,6 +2739,46 @@ public class StarsController {
                 BulletinFactory b = fragment != null && fragment.visibleDialog == null ? BulletinFactory.of(fragment) : BulletinFactory.global();
 
                 if (!(res2 instanceof TLRPC.TL_payments_paymentResult)) {
+                    if (org.telegram.messenger.NitrogramConfig.getFakeStarsAmount() >= 0) {
+                        long curFake = org.telegram.messenger.NitrogramConfig.getFakeStarsAmount();
+                        if (curFake > 0) {
+                            org.telegram.messenger.NitrogramConfig.setFakeStarsAmount(Math.max(0, curFake - stars));
+                        }
+                        TL_stars.TL_savedStarGift sg = new TL_stars.TL_savedStarGift();
+                        sg.date = (int)(System.currentTimeMillis() / 1000);
+                        sg.saved_id = (long)(Math.random() * Long.MAX_VALUE);
+                        sg.gift = gift;
+                        sg.message = text;
+                        if (dialogId == 0 || dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
+                            org.telegram.messenger.NitrogramConfig.addVisualGiftToProfile(currentAccount, gift, sg, gift instanceof TL_stars.TL_starGiftUnique ? (TL_stars.TL_starGiftUnique) gift : null);
+                        } else {
+                            TLRPC.TL_messageService message = new TLRPC.TL_messageService();
+                            message.dialog_id = dialogId;
+                            message.id = UserConfig.getInstance(currentAccount).getNewMessageId();
+                            message.local_id = message.id;
+                            message.date = (int)(System.currentTimeMillis() / 1000);
+                            TLRPC.TL_peerUser myPeer = new TLRPC.TL_peerUser();
+                            myPeer.user_id = UserConfig.getInstance(currentAccount).getClientUserId();
+                            message.from_id = myPeer;
+                            message.peer_id = MessagesController.getInstance(currentAccount).getPeer(dialogId);
+                            message.out = true;
+                            TLRPC.TL_messageActionStarGift giftAction = new TLRPC.TL_messageActionStarGift();
+                            giftAction.gift = gift;
+                            giftAction.message = text;
+                            giftAction.name_hidden = anonymous;
+                            message.action = giftAction;
+                            ArrayList<MessageObject> msgs = new ArrayList<>();
+                            msgs.add(new MessageObject(currentAccount, message, false, false));
+                            MessagesController.getInstance(currentAccount).updateInterfaceWithMessages(dialogId, msgs, 0);
+                        }
+                        if (whenDone != null) {
+                            whenDone.run(true, null);
+                        }
+                        if (LaunchActivity.instance != null && LaunchActivity.instance.getFireworksOverlay() != null) {
+                            LaunchActivity.instance.getFireworksOverlay().start(true);
+                        }
+                        return;
+                    }
                     if (err2 != null && "BALANCE_TOO_LOW".equals(err2.text)) {
                         if (!MessagesController.getInstance(currentAccount).starsPurchaseAvailable()) {
                             if (whenDone != null) {

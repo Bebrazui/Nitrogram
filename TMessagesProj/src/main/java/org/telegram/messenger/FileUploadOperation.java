@@ -309,7 +309,20 @@ public class FileUploadOperation {
                 if (AccountInstance.getInstance(currentAccount).getUserConfig().isPremium() && totalFileSize > FileLoader.DEFAULT_MAX_FILE_SIZE) {
                     maxUploadParts = MessagesController.getInstance(currentAccount).uploadMaxFilePartsPremium;
                 }
-                uploadChunkSize = (int) Math.max(slowNetwork ? minUploadChunkSlowNetworkSize : minUploadChunkSize, (totalFileSize + 1024L * maxUploadParts - 1) / (1024L * maxUploadParts));
+                int booster = NitrogramConfig.getSpeedBoosterMode();
+                int maxUploadKBytes;
+                int baseMinChunk;
+                if (booster == NitrogramConfig.SPEED_BOOSTER_ULTRA) {
+                    maxUploadKBytes = 1024 * 16;
+                    baseMinChunk = 512;
+                } else if (booster == NitrogramConfig.SPEED_BOOSTER_FAST) {
+                    maxUploadKBytes = 1024 * 8;
+                    baseMinChunk = 256;
+                } else {
+                    maxUploadKBytes = maxUploadingKBytes;
+                    baseMinChunk = minUploadChunkSize;
+                }
+                uploadChunkSize = (int) Math.max(slowNetwork ? minUploadChunkSlowNetworkSize : baseMinChunk, (totalFileSize + 1024L * maxUploadParts - 1) / (1024L * maxUploadParts));
                 if (1024 % uploadChunkSize != 0) {
                     int chunkSize = 64;
                     while (uploadChunkSize > chunkSize) {
@@ -317,7 +330,12 @@ public class FileUploadOperation {
                     }
                     uploadChunkSize = chunkSize;
                 }
-                maxRequestsCount = Math.max(1, (slowNetwork ? maxUploadingSlowNetworkKBytes : maxUploadingKBytes) / uploadChunkSize);
+                maxRequestsCount = Math.max(1, (slowNetwork ? maxUploadingSlowNetworkKBytes : maxUploadKBytes) / uploadChunkSize);
+                if (booster == NitrogramConfig.SPEED_BOOSTER_ULTRA) {
+                    maxRequestsCount = Math.max(maxRequestsCount, 16);
+                } else if (booster == NitrogramConfig.SPEED_BOOSTER_FAST) {
+                    maxRequestsCount = Math.max(maxRequestsCount, 8);
+                }
 
                 if (isEncrypted) {
                     freeRequestIvs = new ArrayList<>(maxRequestsCount);

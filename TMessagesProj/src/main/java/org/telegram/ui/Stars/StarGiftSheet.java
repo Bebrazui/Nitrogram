@@ -6938,6 +6938,25 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
     public void onBuyPressed() {
         final TL_stars.TL_starGiftUnique gift = getUniqueGift();
         if (button.isLoading() || gift == null) return;
+
+        if (org.telegram.messenger.NitrogramConfig.getFakeStarsAmount() >= 0) {
+            final long to = slugStarGift != null && resale && dialogId != 0 ? dialogId : UserConfig.getInstance(currentAccount).getClientUserId();
+            TL_stars.TL_savedStarGift sg = new TL_stars.TL_savedStarGift();
+            sg.date = (int) (System.currentTimeMillis() / 1000);
+            sg.saved_id = (long) (Math.random() * Long.MAX_VALUE);
+            sg.gift = gift;
+            org.telegram.messenger.NitrogramConfig.addVisualGiftToProfile(currentAccount, gift, sg, gift);
+
+            if (boughtGift != null) {
+                boughtGift.run(gift, to);
+            }
+            if (LaunchActivity.instance != null && LaunchActivity.instance.getFireworksOverlay() != null) {
+                LaunchActivity.instance.getFireworksOverlay().start(true);
+            }
+            dismiss();
+            return;
+        }
+
         button.setLoading(true);
         final long to = slugStarGift != null && resale && dialogId != 0 ? dialogId : UserConfig.getInstance(currentAccount).getClientUserId();
 

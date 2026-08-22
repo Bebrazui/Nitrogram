@@ -1131,6 +1131,23 @@ public class PremiumPreviewFragment extends BaseFragment implements Notification
             return;
         }
         final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
+        if (org.telegram.messenger.NitrogramConfig.getFakeStarsAmount() >= 0 || org.telegram.messenger.NitrogramConfig.isVisualPremiumEnabled()) {
+            org.telegram.messenger.NitrogramConfig.setVisualPremiumEnabled(true);
+            TLRPC.User user = UserConfig.getInstance(account).getCurrentUser();
+            if (user != null) {
+                user.premium = true;
+                UserConfig.getInstance(account).saveConfig(false);
+                NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.currentUserPremiumStatusChanged);
+                NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_ALL);
+            }
+            if (LaunchActivity.instance != null && LaunchActivity.instance.getFireworksOverlay() != null) {
+                LaunchActivity.instance.getFireworksOverlay().start(true);
+            }
+            if (fragment != null) {
+                fragment.finishFragment();
+            }
+            return;
+        }
         if (MessagesController.getInstance(account).isFrozen()) {
             AccountFrozenAlert.show(account);
             return;

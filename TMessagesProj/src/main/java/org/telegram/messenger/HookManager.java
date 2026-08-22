@@ -1,12 +1,19 @@
 package org.telegram.messenger;
 
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 
+import java.lang.reflect.Method;
+
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 import top.canyie.pine.PineConfig;
 
 public final class HookManager {
 
     private static boolean initialized = false;
+    private static boolean materialSymbolsHooked = false;
 
     private HookManager() {
     }
@@ -20,9 +27,53 @@ public final class HookManager {
             PineConfig.debuggable = BuildVars.DEBUG_VERSION;
             top.canyie.pine.Pine.ensureInitialized();
             initialized = true;
+            initMaterialSymbolsHook();
             FileLog.d("HookManager: Pine native hooking engine initialized successfully (Android API " + Build.VERSION.SDK_INT + ")");
         } catch (Throwable e) {
             FileLog.e("HookManager: Failed to initialize Pine native hooking engine", e);
+        }
+    }
+
+    public static synchronized void initMaterialSymbolsHook() {
+        if (materialSymbolsHooked) {
+            return;
+        }
+        try {
+            Class<?> resClass = android.content.res.Resources.class;
+            Method m1 = XposedHelpers.findMethodExactIfExists(resClass, "getDrawable", int.class, android.content.res.Resources.Theme.class);
+            if (m1 != null) {
+                XposedBridge.hookMethod(m1, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        if (NitrogramConfig.isMaterialSymbolsRoundedEnabled()) {
+                            int id = (Integer) param.args[0];
+                            Drawable d = MaterialSymbolsHelper.get(id);
+                            if (d != null) {
+                                param.setResult(d);
+                            }
+                        }
+                    }
+                });
+            }
+            Method m2 = XposedHelpers.findMethodExactIfExists(resClass, "getDrawable", int.class);
+            if (m2 != null) {
+                XposedBridge.hookMethod(m2, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        if (NitrogramConfig.isMaterialSymbolsRoundedEnabled()) {
+                            int id = (Integer) param.args[0];
+                            Drawable d = MaterialSymbolsHelper.get(id);
+                            if (d != null) {
+                                param.setResult(d);
+                            }
+                        }
+                    }
+                });
+            }
+            materialSymbolsHooked = true;
+            FileLog.d("HookManager: Material Symbols Rounded hook installed successfully");
+        } catch (Throwable t) {
+            FileLog.e("HookManager: Failed to hook Resources.getDrawable for Material Symbols", t);
         }
     }
 

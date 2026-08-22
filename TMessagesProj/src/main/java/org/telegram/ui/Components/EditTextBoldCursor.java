@@ -216,6 +216,8 @@ public class EditTextBoldCursor extends EditTextEffects {
             setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         }
         init();
+        nativeTextAnimator = new NativeTextAnimator(this);
+        nativeTextAnimator.attach();
     }
 
     public void useAnimatedTextDrawable() {
@@ -239,6 +241,8 @@ public class EditTextBoldCursor extends EditTextEffects {
         hintAnimatedDrawable2.setTextColor(hintColor);
         hintAnimatedDrawable2.setTextSize(getPaint().getTextSize());
     }
+
+    private NativeTextAnimator nativeTextAnimator;
 
     @Override
     public void addTextChangedListener(TextWatcher watcher) {
@@ -889,6 +893,10 @@ public class EditTextBoldCursor extends EditTextEffects {
             }
         }
         canvas.restore();
+        if (nativeTextAnimator != null) {
+            nativeTextAnimator.onDraw(canvas);
+        }
+        boolean isNativeSmoothCursor = nativeTextAnimator != null && nativeTextAnimator.isSmoothCursorEnabled();
         if (cursorDrawable == null) {
             try {
                 boolean showCursor;
@@ -899,7 +907,7 @@ public class EditTextBoldCursor extends EditTextEffects {
                     showCursor = cursorDrawn;
                     cursorDrawn = false;
                 }
-                if (allowDrawCursor && showCursor) {
+                if (allowDrawCursor && showCursor && !isNativeSmoothCursor) {
                     canvas.save();
                     int voffsetCursor = 0;
                     if (getVerticalOffsetMethod != null) {
@@ -936,7 +944,7 @@ public class EditTextBoldCursor extends EditTextEffects {
                 }
             }
         } else {
-            if (cursorDrawn && allowDrawCursor) {
+            if (cursorDrawn && allowDrawCursor && !isNativeSmoothCursor) {
                 try {
                     canvas.save();
                     int voffsetCursor = 0;

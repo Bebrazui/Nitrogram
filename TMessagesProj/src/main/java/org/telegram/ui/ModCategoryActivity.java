@@ -21,6 +21,7 @@ import org.telegram.messenger.M3ShapeHelper;
 import org.telegram.messenger.ModConfig;
 import org.telegram.messenger.NitrogramConfig;
 import org.telegram.messenger.R;
+import org.telegram.messenger.VoiceChanger;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -110,9 +111,10 @@ public class ModCategoryActivity extends BaseFragment {
                 items.add(new Item(23, 0, "Material секции", null, ModConfig.isMaterialSections(), true));
                 items.add(new Item(24, 0, "Dynamic Colors (Monet)", null, ModConfig.isDynamicColor(), true));
                 items.add(new Item(25, 0, "Material 3 Sliders & Switches", null, NitrogramConfig.isUseMaterial3Components(), true));
-                items.add(new Item(26, 0, "Material навигация", null, ModConfig.isMaterialNavigation(), true));
-                items.add(new Item(27, 0, "Material загрузка", null, ModConfig.isMaterialLoading(), false));
-                items.add(new Item(201, 3, "Настройка визуального стиля Material Design 3."));
+                items.add(new Item(27, 0, "Material загрузка", null, ModConfig.isMaterialLoading(), true));
+                items.add(new Item(29, 0, "Иконки Material Symbols Rounded", null, NitrogramConfig.isMaterialSymbolsRoundedEnabled(), true));
+                items.add(new Item(28, 1, "Анимации ввода текста (Text Animation)", "Настроить", false, false));
+                items.add(new Item(201, 3, "Настройка визуального стиля Material Design 3, иконок и анимаций текста."));
                 break;
 
             case CATEGORY_CHATS:
@@ -122,8 +124,10 @@ public class ModCategoryActivity extends BaseFragment {
                 items.add(new Item(33, 0, "Ghost Mode (Невидимка)", null, NitrogramConfig.isGhostReadEnabled(), true));
                 items.add(new Item(34, 0, "Скрывать статус печатания", null, NitrogramConfig.isHideTypingEnabled(), true));
                 items.add(new Item(35, 0, "Безлимитные закрепы", null, NitrogramConfig.isUnlimitedPinsEnabled(), true));
-                items.add(new Item(36, 0, "Безлимитные папки", null, NitrogramConfig.isUnlimitedFoldersEnabled(), false));
-                items.add(new Item(301, 3, "Управление чатами, приватностью и скрытием рекламы."));
+                items.add(new Item(36, 0, "Безлимитные папки", null, NitrogramConfig.isUnlimitedFoldersEnabled(), true));
+                items.add(new Item(37, 1, "Модулятор голоса (Voice Changer)", VoiceChanger.getEffectName(VoiceChanger.getEffect()), false, false));
+                items.add(new Item(38, 1, "Ускорение отправки и скачивания", NitrogramConfig.getSpeedBoosterName(NitrogramConfig.getSpeedBoosterMode()), false, false));
+                items.add(new Item(301, 3, "Управление чатами, приватностью, скрытием рекламы, эффектами голоса и ускорением передачи файлов."));
                 break;
 
             case CATEGORY_PLUGINS:
@@ -211,6 +215,7 @@ public class ModCategoryActivity extends BaseFragment {
             boolean v = !NitrogramConfig.isFakeIdentityEnabled();
             NitrogramConfig.setFakeIdentityEnabled(v);
             if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+            NitrogramConfig.notifyIdentityChanged();
             buildItems();
             if (adapter != null) adapter.notifyDataSetChanged();
         } else if (item.id == 3) {
@@ -221,30 +226,35 @@ public class ModCategoryActivity extends BaseFragment {
         } else if (item.id == 4) {
             showInputDialog("Номер телефона", "Любой номер", NitrogramConfig.getFakePhone(), text -> {
                 NitrogramConfig.setFakePhone(text);
+                NitrogramConfig.notifyIdentityChanged();
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
         } else if (item.id == 5) {
             showInputDialog("Основной Username", "Юзернейм", NitrogramConfig.getFakeUsername(), text -> {
                 NitrogramConfig.setFakeUsername(text);
+                NitrogramConfig.notifyIdentityChanged();
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
         } else if (item.id == 6) {
             showInputDialog("Доп. Юзернеймы", "Через запятую", NitrogramConfig.getFakeUsernamesExtra(), text -> {
                 NitrogramConfig.setFakeUsernamesExtra(text);
+                NitrogramConfig.notifyIdentityChanged();
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
         } else if (item.id == 7) {
             showInputDialog("Имя", "Имя", NitrogramConfig.getFakeFirstName(), text -> {
                 NitrogramConfig.setFakeFirstName(text);
+                NitrogramConfig.notifyIdentityChanged();
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
         } else if (item.id == 8) {
             showInputDialog("Фамилия", "Фамилия", NitrogramConfig.getFakeLastName(), text -> {
                 NitrogramConfig.setFakeLastName(text);
+                NitrogramConfig.notifyIdentityChanged();
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
@@ -277,6 +287,12 @@ public class ModCategoryActivity extends BaseFragment {
             boolean v = !ModConfig.isMaterialLoading();
             ModConfig.setMaterialLoading(v);
             if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 29) {
+            boolean v = !NitrogramConfig.isMaterialSymbolsRoundedEnabled();
+            NitrogramConfig.setMaterialSymbolsRoundedEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 28) {
+            presentFragment(new TextAnimationActivity());
         } else if (item.id == 31) {
             boolean v = !ModConfig.isBlockSponsored();
             ModConfig.setBlockSponsored(v);
@@ -301,6 +317,38 @@ public class ModCategoryActivity extends BaseFragment {
             boolean v = !NitrogramConfig.isUnlimitedFoldersEnabled();
             NitrogramConfig.setUnlimitedFoldersEnabled(v);
             if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 37) {
+            final String[] effects = new String[] {
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_NONE),
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_CHIPMUNK),
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_DEEP),
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_ROBOT),
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_RADIO),
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_ECHO),
+                VoiceChanger.getEffectName(VoiceChanger.EFFECT_ALIEN)
+            };
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("Модулятор голоса");
+            builder.setItems(effects, (dialog, which) -> {
+                VoiceChanger.setEffect(which);
+                buildItems();
+                if (adapter != null) adapter.notifyDataSetChanged();
+            });
+            showDialog(builder.create());
+        } else if (item.id == 38) {
+            final String[] modes = new String[] {
+                NitrogramConfig.getSpeedBoosterName(NitrogramConfig.SPEED_BOOSTER_OFF),
+                NitrogramConfig.getSpeedBoosterName(NitrogramConfig.SPEED_BOOSTER_FAST),
+                NitrogramConfig.getSpeedBoosterName(NitrogramConfig.SPEED_BOOSTER_ULTRA)
+            };
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("Ускорение отправки и скачивания");
+            builder.setItems(modes, (dialog, which) -> {
+                NitrogramConfig.setSpeedBoosterMode(which);
+                buildItems();
+                if (adapter != null) adapter.notifyDataSetChanged();
+            });
+            showDialog(builder.create());
         } else if (item.id == 41) {
             presentFragment(new WsProxySettingsActivity());
         } else if (item.id == 42) {
@@ -380,7 +428,7 @@ public class ModCategoryActivity extends BaseFragment {
             switch (viewType) {
                 case 0:
                     view = new TextCheckCell(mContext);
-                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    view.setBackground(Theme.getSelectorDrawable(true));
                     break;
                 case 2:
                     view = new HeaderCell(mContext);
@@ -392,7 +440,7 @@ public class ModCategoryActivity extends BaseFragment {
                 case 1:
                 default:
                     view = new TextSettingsCell(mContext);
-                    view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                    view.setBackground(Theme.getSelectorDrawable(true));
                     break;
             }
             view.setLayoutParams(new RecyclerView.LayoutParams(RecyclerView.LayoutParams.MATCH_PARENT, RecyclerView.LayoutParams.WRAP_CONTENT));

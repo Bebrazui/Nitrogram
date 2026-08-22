@@ -1164,6 +1164,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                     final ByteBuffer finalBuffer = buffer;
                     final boolean flush = len != buffer.capacity();
                     fileEncodingQueue.postRunnable(() -> {
+                        VoiceChanger.process(finalBuffer, sampleRate);
                         while (finalBuffer.hasRemaining()) {
                             int oldLimit = -1;
                             if (finalBuffer.remaining() > fileBuffer.remaining()) {

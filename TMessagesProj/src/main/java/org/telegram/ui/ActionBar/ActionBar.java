@@ -450,6 +450,15 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
             createBackButtonImage();
         }
         backButtonImageView.setVisibility(resource == 0 ? GONE : VISIBLE);
+        if (org.telegram.messenger.NitrogramConfig.isMaterialSymbolsRoundedEnabled()) {
+            Drawable d = org.telegram.messenger.MaterialSymbolsHelper.get(resource);
+            if (d != null) {
+                backButtonImageView.setImageDrawable(d);
+                backButtonImageView.setColorFilter(new PorterDuffColorFilter(itemsColor, PorterDuff.Mode.SRC_IN));
+                checkBackButtonLayerType();
+                return;
+            }
+        }
         backButtonImageView.setImageResource(resource);
         backButtonImageView.setColorFilter(new PorterDuffColorFilter(itemsColor, PorterDuff.Mode.SRC_IN));
         checkBackButtonLayerType();

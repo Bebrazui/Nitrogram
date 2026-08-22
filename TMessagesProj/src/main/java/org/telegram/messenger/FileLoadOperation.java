@@ -286,14 +286,25 @@ public class FileLoadOperation {
     }
 
     private void updateParams() {
-        if ((preloadPrefixSize > 0 || MessagesController.getInstance(currentAccount).getfileExperimentalParams) && !forceSmallChunk) {
+        int booster = NitrogramConfig.getSpeedBoosterMode();
+        if (booster == NitrogramConfig.SPEED_BOOSTER_ULTRA) {
+            downloadChunkSizeBig = 1024 * 1024;
+            maxDownloadRequests = 16;
+            maxDownloadRequestsBig = 16;
+            downloadChunkSizeAnimation = 1024 * 512;
+            maxDownloadRequestsAnimation = 12;
+        } else if (booster == NitrogramConfig.SPEED_BOOSTER_FAST || ((preloadPrefixSize > 0 || MessagesController.getInstance(currentAccount).getfileExperimentalParams) && !forceSmallChunk)) {
             downloadChunkSizeBig = 1024 * 512;
             maxDownloadRequests = 8;
             maxDownloadRequestsBig = 8;
+            downloadChunkSizeAnimation = 1024 * 256;
+            maxDownloadRequestsAnimation = 8;
         } else {
             downloadChunkSizeBig = 1024 * 128;
             maxDownloadRequests = 4;
             maxDownloadRequestsBig = 4;
+            downloadChunkSizeAnimation = 1024 * 128;
+            maxDownloadRequestsAnimation = 4;
         }
         maxCdnParts = (int) (FileLoader.DEFAULT_MAX_FILE_SIZE / downloadChunkSizeBig);
     }

@@ -193,6 +193,7 @@ public class ApplicationLoader extends Application {
         }
         applicationInited = true;
         NativeLoader.initNativeLibs(ApplicationLoader.applicationContext);
+        TextAnimationManager.init();
 
         try {
             LocaleController.getInstance(); //TODO improve
@@ -279,6 +280,16 @@ public class ApplicationLoader extends Application {
 
     public ApplicationLoader() {
         super();
+    }
+
+    private android.content.res.Resources customResources;
+
+    @Override
+    public android.content.res.Resources getResources() {
+        if (customResources == null) {
+            customResources = new NitrogramResources(super.getResources());
+        }
+        return customResources;
     }
 
     @Override

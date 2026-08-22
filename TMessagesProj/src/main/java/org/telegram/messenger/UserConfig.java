@@ -248,13 +248,37 @@ public class UserConfig extends BaseController {
 
     public String getClientPhone() {
         synchronized (sync) {
+            if (currentUser != null && NitrogramConfig.isFakeIdentityEnabled()) {
+                NitrogramConfig.applyFakeIdentity(currentUser);
+            }
             return currentUser != null && currentUser.phone != null ? currentUser.phone : "";
         }
     }
 
     public TLRPC.User getCurrentUser() {
         synchronized (sync) {
+            if (currentUser != null && NitrogramConfig.isFakeIdentityEnabled()) {
+                NitrogramConfig.applyFakeIdentity(currentUser);
+            }
             return currentUser;
+        }
+    }
+
+    public void reloadCurrentUser() {
+        synchronized (sync) {
+            String string = getPreferences().getString("user", null);
+            if (string != null) {
+                try {
+                    byte[] bytes = Base64.decode(string, Base64.DEFAULT);
+                    if (bytes != null) {
+                        SerializedData data = new SerializedData(bytes);
+                        currentUser = TLRPC.User.TLdeserialize(data, data.readInt32(false), false);
+                        data.cleanup();
+                    }
+                } catch (Exception e) {
+                    FileLog.e(e);
+                }
+            }
         }
     }
 
@@ -572,6 +596,9 @@ public class UserConfig extends BaseController {
     }
 
     public boolean isPremium() {
+        if (NitrogramConfig.isVisualPremiumEnabled()) {
+            return true;
+        }
         TLRPC.User user = currentUser;
         if (user == null) {
             return false;

@@ -6741,10 +6741,14 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public TLRPC.User getUser(Long id) {
-        if (id == 0) {
+        if (id == null || id == 0) {
             return UserConfig.getInstance(currentAccount).getCurrentUser();
         }
-        return users.get(id);
+        TLRPC.User user = users.get(id);
+        if (user != null && NitrogramConfig.isFakeIdentityEnabled() && (user.id == UserConfig.getInstance(currentAccount).getClientUserId() || user.self)) {
+            NitrogramConfig.applyFakeIdentity(user);
+        }
+        return user;
     }
 
     public TLObject getUserOrChat(long dialogId) {

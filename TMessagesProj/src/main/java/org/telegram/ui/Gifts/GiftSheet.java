@@ -1605,6 +1605,12 @@ public class GiftSheet extends BottomSheetWithRecyclerListView implements Notifi
             boolean inResalePage,
             boolean inCrafting
         ) {
+            if (gift == null) {
+                return false;
+            }
+            if (gift.attributes == null) {
+                gift.attributes = new ArrayList<>();
+            }
             if (cancel != null) {
                 cancel.run();
                 cancel = null;
@@ -1740,6 +1746,12 @@ public class GiftSheet extends BottomSheetWithRecyclerListView implements Notifi
         private TL_stars.SavedStarGift lastUserGift;
 
         public boolean setStarsGift(TL_stars.SavedStarGift userGift, boolean noprice, boolean inCollection) {
+            if (userGift == null || userGift.gift == null) {
+                return false;
+            }
+            if (userGift.gift.attributes == null) {
+                userGift.gift.attributes = new ArrayList<>();
+            }
             if (cancel != null) {
                 cancel.run();
                 cancel = null;
