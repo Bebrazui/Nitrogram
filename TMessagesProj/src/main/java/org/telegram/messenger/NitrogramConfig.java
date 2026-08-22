@@ -1351,4 +1351,80 @@ public final class NitrogramConfig {
     private static int clampChatDensity(int value) {
         return Math.max(MIN_CHAT_DENSITY, Math.min(MAX_CHAT_DENSITY, value));
     }
+
+    // Custom Download Directory
+    private static final String KEY_CUSTOM_DOWNLOAD_DIR = "custom_download_dir";
+    public static String getCustomDownloadDirName() {
+        return prefs().getString(KEY_CUSTOM_DOWNLOAD_DIR, "Nitrogram");
+    }
+    public static void setCustomDownloadDirName(String name) {
+        if (name == null || name.trim().isEmpty()) name = "Nitrogram";
+        prefs().edit().putString(KEY_CUSTOM_DOWNLOAD_DIR, name.trim()).apply();
+    }
+
+    // Profile options
+    private static final String KEY_RELATIVE_ONLINE_TIME = "relative_online_time";
+    public static boolean isRelativeOnlineTimeEnabled() {
+        return prefs().getBoolean(KEY_RELATIVE_ONLINE_TIME, false);
+    }
+    public static void setRelativeOnlineTimeEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_RELATIVE_ONLINE_TIME, value).apply();
+    }
+
+    private static final String KEY_HIDE_PHONE_NUMBER = "hide_phone_number";
+    public static boolean isHidePhoneNumberEnabled() {
+        return prefs().getBoolean(KEY_HIDE_PHONE_NUMBER, false);
+    }
+    public static void setHidePhoneNumberEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_HIDE_PHONE_NUMBER, value).apply();
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.mainUserInfoChanged);
+    }
+
+    public static final int SHOW_ID_DISABLED = 0;
+    public static final int SHOW_ID_TELEGRAM_API = 1;
+    public static final int SHOW_ID_BOT_API = 2;
+    private static final String KEY_SHOW_ID_TYPE = "show_id_type";
+    public static int getShowIdType() {
+        return prefs().getInt(KEY_SHOW_ID_TYPE, SHOW_ID_TELEGRAM_API);
+    }
+    public static void setShowIdType(int type) {
+        prefs().edit().putInt(KEY_SHOW_ID_TYPE, type).apply();
+    }
+    public static String getShowIdTypeName(int type) {
+        switch (type) {
+            case SHOW_ID_TELEGRAM_API:
+                return "Telegram API";
+            case SHOW_ID_BOT_API:
+                return "Bot API";
+            case SHOW_ID_DISABLED:
+            default:
+                return "Отключено";
+        }
+    }
+
+    // Archive options
+    private static final String KEY_HIDE_ARCHIVE_FROM_DIALOGS = "hide_archive_from_dialogs";
+    public static boolean isHideArchiveFromDialogs() {
+        return prefs().getBoolean(KEY_HIDE_ARCHIVE_FROM_DIALOGS, false);
+    }
+    public static void setHideArchiveFromDialogs(boolean value) {
+        prefs().edit().putBoolean(KEY_HIDE_ARCHIVE_FROM_DIALOGS, value).apply();
+        NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.dialogsNeedReload);
+    }
+
+    private static final String KEY_OPEN_ARCHIVE_ON_PULL = "open_archive_on_pull";
+    public static boolean isOpenArchiveOnPullEnabled() {
+        return prefs().getBoolean(KEY_OPEN_ARCHIVE_ON_PULL, true);
+    }
+    public static void setOpenArchiveOnPullEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_OPEN_ARCHIVE_ON_PULL, value).apply();
+    }
+
+    private static final String KEY_DISABLE_UNARCHIVE_SWIPE = "disable_unarchive_swipe";
+    public static boolean isDisableUnarchiveSwipeEnabled() {
+        return prefs().getBoolean(KEY_DISABLE_UNARCHIVE_SWIPE, true);
+    }
+    public static void setDisableUnarchiveSwipeEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_DISABLE_UNARCHIVE_SWIPE, value).apply();
+    }
 }

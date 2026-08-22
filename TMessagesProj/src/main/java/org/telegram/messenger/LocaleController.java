@@ -2697,15 +2697,17 @@ public class LocaleController {
             int dateHour = rightNow.get(Calendar.HOUR_OF_DAY);
 
             if (dateDay == day && year == dateYear) {
+                if (NitrogramConfig.isRelativeOnlineTimeEnabled()) {
+                    int diff = (int) (ConnectionsManager.getInstance(UserConfig.selectedAccount).getCurrentTime() - (date / 1000)) / 60;
+                    if (diff < 1) {
+                        return LocaleController.getString(R.string.Lately);
+                    } else if (diff < 60) {
+                        return LocaleController.formatPluralString("LastSeenMinutes", diff);
+                    } else {
+                        return LocaleController.formatPluralString("LastSeenHours", (int) Math.ceil(diff / 60.0f));
+                    }
+                }
                 return LocaleController.formatString(R.string.LastSeenFormatted, LocaleController.formatString("TodayAtFormatted", R.string.TodayAtFormatted, getInstance().getFormatterDay().format(new Date(date))));
-                /*int diff = (int) (ConnectionsManager.getInstance().getCurrentTime() - date) / 60;
-                if (diff < 1) {
-                    return LocaleController.getString(R.string.LastSeenNow);
-                } else if (diff < 60) {
-                    return LocaleController.formatPluralString("LastSeenMinutes", diff);
-                } else {
-                    return LocaleController.formatPluralString("LastSeenHours", (int) Math.ceil(diff / 60.0f));
-                }*/
             } else if (dateDay + 1 == day && year == dateYear) {
                 if (madeShorter != null) {
                     madeShorter[0] = true;

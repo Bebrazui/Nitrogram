@@ -87,11 +87,32 @@ public class ModCategoryActivity extends BaseFragment {
         items.clear();
         switch (category) {
             case CATEGORY_MAIN:
+                // Папка для сохранения
+                String downloadDir = NitrogramConfig.getCustomDownloadDirName();
+                items.add(new Item(14, 1, "Папка для сохранения", downloadDir, false, false));
+                items.add(new Item(106, 3, "Сохранённые файлы будут в Pictures/" + downloadDir + ", Downloads/" + downloadDir + " и т.д."));
+
+                // Профиль
+                items.add(new Item(107, 2, "Профиль"));
+                items.add(new Item(15, 0, "Относительное время онлайн", "был(а) в 21:28:24", NitrogramConfig.isRelativeOnlineTimeEnabled(), true));
+                items.add(new Item(16, 0, "Скрыть номер телефона", null, NitrogramConfig.isHidePhoneNumberEnabled(), true));
+                items.add(new Item(17, 1, "Показывать ID и DC", NitrogramConfig.getShowIdTypeName(NitrogramConfig.getShowIdType()), false, false));
+                items.add(new Item(108, 3, "Telegram API показывает ID как есть, а Bot API добавляет минус для групп и -100 для супергрупп и каналов."));
+
+                // Архив чатов
+                items.add(new Item(109, 2, "Архив чатов"));
+                items.add(new Item(18, 0, "Скрыть архив из списка чатов", null, NitrogramConfig.isHideArchiveFromDialogs(), true));
+                items.add(new Item(19, 0, "Открывать архив при вытягивании", null, NitrogramConfig.isOpenArchiveOnPullEnabled(), true));
+                items.add(new Item(20, 0, "Отключить жест \"Вернуть\"", null, NitrogramConfig.isDisableUnarchiveSwipeEnabled(), false));
+                items.add(new Item(110, 3, "Свайп влево не будет убирать чаты из архива."));
+
+                // Telegram Stars
                 items.add(new Item(100, 2, "Telegram Stars"));
                 long stars = NitrogramConfig.getFakeStarsAmount();
                 items.add(new Item(1, 1, "Баланс Telegram Stars (Visual)", stars >= 0 ? (stars + " ⭐️") : "Реальный", false, true));
                 items.add(new Item(101, 3, "Визуально меняет баланс Telegram Stars во всем приложении."));
 
+                // Подмена профиля
                 items.add(new Item(102, 2, "Подмена профиля"));
                 items.add(new Item(2, 0, "Включить виртуальную подмену профиля", null, NitrogramConfig.isFakeIdentityEnabled(), true));
                 items.add(new Item(3, 1, "Сбросить к реальным данным", null, false, true));
@@ -102,7 +123,8 @@ public class ModCategoryActivity extends BaseFragment {
                 items.add(new Item(8, 1, "Фамилия", NitrogramConfig.getFakeLastName().isEmpty() ? "Не задана" : NitrogramConfig.getFakeLastName(), false, false));
                 items.add(new Item(103, 3, "Подменяет имя, телефон и юзернеймы в интерфейсе клиента."));
 
-                items.add(new Item(104, 2, "Основные"));
+                // Дополнительно
+                items.add(new Item(104, 2, "Дополнительно"));
                 items.add(new Item(9, 0, "Отключить округление чисел", "1.23K → 1,234", NitrogramConfig.isDisableNumberRounding(), true));
                 items.add(new Item(10, 0, "Форматировать время с секундами", "12:34 → 12:34:56", NitrogramConfig.isShowSecondsInTime(), true));
                 items.add(new Item(11, 0, "Вибрация в приложении", null, NitrogramConfig.isInAppVibrationEnabled(), true));
@@ -266,6 +288,42 @@ public class ModCategoryActivity extends BaseFragment {
                 buildItems();
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
+        } else if (item.id == 14) {
+            showInputDialog("Папка для сохранения", "Имя папки", NitrogramConfig.getCustomDownloadDirName(), text -> {
+                NitrogramConfig.setCustomDownloadDirName(text);
+                buildItems();
+                if (adapter != null) adapter.notifyDataSetChanged();
+            });
+        } else if (item.id == 15) {
+            boolean v = !NitrogramConfig.isRelativeOnlineTimeEnabled();
+            NitrogramConfig.setRelativeOnlineTimeEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 16) {
+            boolean v = !NitrogramConfig.isHidePhoneNumberEnabled();
+            NitrogramConfig.setHidePhoneNumberEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 17) {
+            final String[] types = new String[]{"Отключено", "Telegram API", "Bot API"};
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("Показывать ID и DC");
+            builder.setItems(types, (dialog, which) -> {
+                NitrogramConfig.setShowIdType(which);
+                buildItems();
+                if (adapter != null) adapter.notifyDataSetChanged();
+            });
+            showDialog(builder.create());
+        } else if (item.id == 18) {
+            boolean v = !NitrogramConfig.isHideArchiveFromDialogs();
+            NitrogramConfig.setHideArchiveFromDialogs(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 19) {
+            boolean v = !NitrogramConfig.isOpenArchiveOnPullEnabled();
+            NitrogramConfig.setOpenArchiveOnPullEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 20) {
+            boolean v = !NitrogramConfig.isDisableUnarchiveSwipeEnabled();
+            NitrogramConfig.setDisableUnarchiveSwipeEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
         } else if (item.id == 9) {
             boolean v = !NitrogramConfig.isDisableNumberRounding();
             NitrogramConfig.setDisableNumberRounding(v);

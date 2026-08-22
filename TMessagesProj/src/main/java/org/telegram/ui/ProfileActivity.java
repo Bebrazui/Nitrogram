@@ -20,6 +20,7 @@ import static org.telegram.messenger.LocaleController.getString;
 import static org.telegram.ui.Stars.StarGiftSheet.replaceUnderstood;
 import static org.telegram.ui.Stars.StarsIntroActivity.formatStarsAmountShort;
 import static org.telegram.ui.bots.AffiliateProgramFragment.percents;
+import org.telegram.messenger.NitrogramConfig;
 
 import android.Manifest;
 import android.animation.Animator;
@@ -652,6 +653,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int locationRow;
     private int userInfoRow;
     private int channelInfoRow;
+    private int nitrogramIdRow = -1;
+    private int nitrogramDcRow = -1;
     private int usernameRow;
     private int notificationsDividerRow;
     private int notificationsRow;
@@ -7413,6 +7416,38 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             return true;
         } else if (position == noteRow) {
 
+        } else if (position == nitrogramIdRow || position == nitrogramDcRow) {
+            String copyText = "";
+            if (position == nitrogramIdRow) {
+                int showIdType = NitrogramConfig.getShowIdType();
+                if (userId != 0) {
+                    copyText = String.valueOf(userId);
+                } else if (chatId != 0) {
+                    TLRPC.Chat chat = getMessagesController().getChat(chatId);
+                    if (showIdType == NitrogramConfig.SHOW_ID_BOT_API) {
+                        boolean isSupergroupOrChannel = ChatObject.isChannel(chat);
+                        copyText = (isSupergroupOrChannel ? "-100" : "-") + chatId;
+                    } else {
+                        copyText = String.valueOf(chatId);
+                    }
+                }
+            } else {
+                int dc = 0;
+                if (userId != 0) {
+                    TLRPC.User u = getMessagesController().getUser(userId);
+                    if (u != null && u.photo != null) dc = u.photo.dc_id;
+                } else if (chatId != 0) {
+                    TLRPC.Chat c = getMessagesController().getChat(chatId);
+                    if (c != null && c.photo != null) dc = c.photo.dc_id;
+                }
+                if (dc == 0) {
+                    dc = ConnectionsManager.native_getCurrentDatacenterId(currentAccount);
+                }
+                copyText = "DC " + dc;
+            }
+            AndroidUtilities.addToClipboard(copyText);
+            BulletinFactory.of(this).createCopyBulletin(LocaleController.getString(R.string.TextCopied)).show();
+            return true;
         } else if (position == phoneRow || position == numberRow) {
             if (editRow(view, position)) return true;
 
@@ -10464,6 +10499,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         setAvatarSectionRow = -1;
         numberSectionRow = -1;
         numberRow = -1;
+        nitrogramIdRow = -1;
+        nitrogramDcRow = -1;
         birthdayRow = -1;
         setUsernameRow = -1;
         bioRow = -1;
@@ -10737,6 +10774,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         noteRow = rowCount++;
                     }
                 }
+                if (NitrogramConfig.getShowIdType() != NitrogramConfig.SHOW_ID_DISABLED) {
+                    nitrogramIdRow = rowCount++;
+                    nitrogramDcRow = rowCount++;
+                }
                 if (actionsView == null && userId != getUserConfig().getClientUserId()) {
                     notificationsRow = rowCount++;
                 }
@@ -10880,6 +10921,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
                 if (ChatObject.isPublic(currentChat)) {
                     usernameRow = rowCount++;
+                }
+                if (NitrogramConfig.getShowIdType() != NitrogramConfig.SHOW_ID_DISABLED) {
+                    nitrogramIdRow = rowCount++;
+                    nitrogramDcRow = rowCount++;
                 }
             }
             if (emptyRow < 0 && emptyRow2 < 0) {
@@ -13500,7 +13545,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         String text;
                         TLRPC.User user = getMessagesController().getUser(userId);
                         String phoneNumber;
-                        if (user != null && !TextUtils.isEmpty(vcardPhone)) {
+                        if (myProfile && NitrogramConfig.isHidePhoneNumberEnabled()) {
+                            text = LocaleController.getString(R.string.PhoneHidden);
+                            phoneNumber = null;
+                        } else if (user != null && !TextUtils.isEmpty(vcardPhone)) {
                             text = PhoneFormat.getInstance().format("+" + vcardPhone);
                             phoneNumber = vcardPhone;
                         } else if (user != null && !TextUtils.isEmpty(user.phone)) {
@@ -13512,6 +13560,34 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                         isFragmentPhoneNumber = phoneNumber != null && phoneNumber.matches("888\\d{8}");
                         detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
+                    } else if (position == nitrogramIdRow) {
+                        String idStr = "";
+                        int showIdType = NitrogramConfig.getShowIdType();
+                        if (userId != 0) {
+                            idStr = String.valueOf(userId);
+                        } else if (chatId != 0) {
+                            TLRPC.Chat chat = getMessagesController().getChat(chatId);
+                            if (showIdType == NitrogramConfig.SHOW_ID_BOT_API) {
+                                boolean isSupergroupOrChannel = ChatObject.isChannel(chat);
+                                idStr = (isSupergroupOrChannel ? "-100" : "-") + chatId;
+                            } else {
+                                idStr = String.valueOf(chatId);
+                            }
+                        }
+                        detailCell.setTextAndValue(idStr, "ID (" + NitrogramConfig.getShowIdTypeName(showIdType) + ")", false);
+                    } else if (position == nitrogramDcRow) {
+                        int dc = 0;
+                        if (userId != 0) {
+                            TLRPC.User u = getMessagesController().getUser(userId);
+                            if (u != null && u.photo != null) dc = u.photo.dc_id;
+                        } else if (chatId != 0) {
+                            TLRPC.Chat c = getMessagesController().getChat(chatId);
+                            if (c != null && c.photo != null) dc = c.photo.dc_id;
+                        }
+                        if (dc == 0) {
+                            dc = ConnectionsManager.native_getCurrentDatacenterId(currentAccount);
+                        }
+                        detailCell.setTextAndValue("DC " + dc, "Дата-центр", false);
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;
@@ -14327,7 +14403,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == nitrogramIdRow || position == nitrogramDcRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
