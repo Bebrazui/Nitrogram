@@ -1915,6 +1915,9 @@ public class ChatObject {
         if (chat == null) {
             return true;
         }
+        if (org.telegram.messenger.NitrogramConfig.isVisualChannelOwner(chat.id)) {
+            return true;
+        }
         if (canUserDoAdminAction(chat, action)) {
             return true;
         }
@@ -2117,6 +2120,9 @@ public class ChatObject {
     }
 
     public static boolean hasAdminRights(TLRPC.Chat chat) {
+        if (chat != null && org.telegram.messenger.NitrogramConfig.isVisualChannelOwner(chat.id)) {
+            return true;
+        }
         return chat != null && (chat.creator || chat.admin_rights != null && chat.admin_rights.flags != 0);
     }
 

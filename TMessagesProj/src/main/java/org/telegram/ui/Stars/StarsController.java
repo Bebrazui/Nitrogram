@@ -236,6 +236,12 @@ public class StarsController {
             AmountUtils.Amount b = AmountUtils.Amount.ofSafe(balance);
             return AmountUtils.Amount.fromDecimal(Math.max(0, b.asDecimal() - minus), b.currency).toTl();
         }
+        long fakeStars = org.telegram.messenger.NitrogramConfig.getFakeStarsAmount();
+        if (!ton && fakeStars >= 0) {
+            TL_stars.TL_starsAmount res = new TL_stars.TL_starsAmount();
+            res.amount = fakeStars;
+            return res;
+        }
         return balance;
     }
 
@@ -3663,11 +3669,32 @@ public class StarsController {
                         gifts.clear();
                     }
                     gifts.addAll(rez.gifts);
+                    if (dialogId == 0 || dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
+                        ArrayList<TL_stars.SavedStarGift> visualGifts = org.telegram.messenger.NitrogramConfig.getVisualGifts(currentAccount);
+                        for (int i = visualGifts.size() - 1; i >= 0; i--) {
+                            TL_stars.SavedStarGift vg = visualGifts.get(i);
+                            if (!gifts.contains(vg)) {
+                                gifts.add(0, vg);
+                            }
+                        }
+                    }
                     lastOffset = rez.next_offset;
-                    totalCount = rez.count;
+                    totalCount = Math.max(gifts.size(), rez.count);
                     chat_notifications_enabled = (rez.flags & 2) != 0 ? rez.chat_notifications_enabled : null;
                     endReached = gifts.size() > totalCount || lastOffset == null;
                 } else {
+                    if (dialogId == 0 || dialogId == UserConfig.getInstance(currentAccount).getClientUserId()) {
+                        ArrayList<TL_stars.SavedStarGift> visualGifts = org.telegram.messenger.NitrogramConfig.getVisualGifts(currentAccount);
+                        if (!visualGifts.isEmpty()) {
+                            for (int i = visualGifts.size() - 1; i >= 0; i--) {
+                                TL_stars.SavedStarGift vg = visualGifts.get(i);
+                                if (!gifts.contains(vg)) {
+                                    gifts.add(0, vg);
+                                }
+                            }
+                            totalCount = gifts.size();
+                        }
+                    }
                     endReached = true;
                 }
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.starUserGiftsLoaded, dialogId, GiftsList.this);

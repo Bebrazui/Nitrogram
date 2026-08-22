@@ -6779,7 +6779,11 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public TLRPC.Chat getChat(Long id) {
-        return chats.get(id);
+        TLRPC.Chat chat = chats.get(id);
+        if (chat != null && id != null && org.telegram.messenger.NitrogramConfig.isVisualChannelOwner(id)) {
+            chat.creator = true;
+        }
+        return chat;
     }
 
     public TLRPC.EncryptedChat getEncryptedChat(Integer id) {
@@ -7317,6 +7321,13 @@ public class MessagesController extends BaseController implements NotificationCe
 
     public TLRPC.UserFull getUserFull(long uid) {
         return fullUsers.get(uid);
+    }
+
+    public void putFullUser(TLRPC.UserFull userFull) {
+        if (userFull != null) {
+            long uid = userFull.user != null ? userFull.user.id : userFull.id;
+            fullUsers.put(uid, userFull);
+        }
     }
 
     public TLRPC.ChatFull getChatFull(long chatId) {

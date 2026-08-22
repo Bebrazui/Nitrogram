@@ -43,7 +43,9 @@ public class ModSettingsActivity extends BaseFragment {
 
     private int rowCount;
     private int fakeHeaderRow;
+    private int fakeStarsRow;
     private int fakeSwitchRow;
+    private int fakeResetRow;
     private int fakePhoneRow;
     private int fakeUsernameRow;
     private int fakeUsernamesExtraRow;
@@ -84,7 +86,9 @@ public class ModSettingsActivity extends BaseFragment {
 
         // Fake Identity Section
         fakeHeaderRow = rowCount++;
+        fakeStarsRow = rowCount++;
         fakeSwitchRow = rowCount++;
+        fakeResetRow = rowCount++;
         fakePhoneRow = rowCount++;
         fakeUsernameRow = rowCount++;
         fakeUsernamesExtraRow = rowCount++;
@@ -157,11 +161,29 @@ public class ModSettingsActivity extends BaseFragment {
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
         listView.setAdapter(listAdapter);
         listView.setOnItemClickListener((view, position) -> {
-            if (position == fakeSwitchRow) {
+            if (position == fakeStarsRow) {
+                long currentStars = NitrogramConfig.getFakeStarsAmount();
+                String curStr = currentStars >= 0 ? String.valueOf(currentStars) : "";
+                showInputDialog("Баланс Telegram Stars (Visual)", "Введите число звёзд (или -1 для сброса)", curStr, text -> {
+                    try {
+                        long val = Long.parseLong(text.trim().replaceAll("[^0-9-]", ""));
+                        NitrogramConfig.setFakeStarsAmount(val);
+                        org.telegram.ui.Stars.StarsController.getInstance(currentAccount).invalidateBalance();
+                        if (listAdapter != null) listAdapter.notifyItemChanged(fakeStarsRow);
+                        Toast.makeText(getParentActivity(), "Баланс звёзд обновлен!", Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        Toast.makeText(getParentActivity(), "Некорректное число", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else if (position == fakeSwitchRow) {
                 boolean v = !NitrogramConfig.isFakeIdentityEnabled();
                 NitrogramConfig.setFakeIdentityEnabled(v);
                 ((TextCheckCell) view).setChecked(v);
                 if (listAdapter != null) listAdapter.notifyDataSetChanged();
+            } else if (position == fakeResetRow) {
+                NitrogramConfig.resetToRealAccount();
+                if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                Toast.makeText(getParentActivity(), "Сброшено к реальным данным аккаунта!", Toast.LENGTH_SHORT).show();
             } else if (position == fakePhoneRow) {
                 showInputDialog("Номер телефона", "Любой номер (например, +7 (999) 777-77-77, +1337)", NitrogramConfig.getFakePhone(), text -> {
                     NitrogramConfig.setFakePhone(text);
@@ -382,7 +404,13 @@ public class ModSettingsActivity extends BaseFragment {
                 }
                 case VIEW_TYPE_SETTING: {
                     TextSettingsCell cell = (TextSettingsCell) holder.itemView;
-                    if (position == fakePhoneRow) {
+                    if (position == fakeStarsRow) {
+                        long stars = NitrogramConfig.getFakeStarsAmount();
+                        cell.setTextAndValue("Баланс Telegram Stars (Visual)", stars >= 0 ? (stars + " ⭐️") : "Реальный", true);
+                    } else if (position == fakeResetRow) {
+                        cell.setText("Сбросить к реальным данным аккаунта", false);
+                        cell.setTextColor(Theme.getColor(Theme.key_text_RedBold));
+                    } else if (position == fakePhoneRow) {
                         cell.setTextAndValue("Номер телефона", NitrogramConfig.getFakePhone(), true);
                     } else if (position == fakeUsernameRow) {
                         cell.setTextAndValue("Основной Username", "@" + NitrogramConfig.getFakeUsername(), true);

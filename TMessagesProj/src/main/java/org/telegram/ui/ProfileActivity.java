@@ -594,6 +594,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int delete_group = 45;
     private final static int enable_no_forwards = 46;
     private final static int disable_no_forwards = 47;
+    private final static int add_visual_account = 48;
+    private final static int claim_visual_ownership = 49;
 
     private Rect rect = new Rect();
 
@@ -2540,7 +2542,43 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         stopTabsReorder();
                         return;
                     }
-                    finishFragment();
+                } else if (id == add_visual_account) {
+                    final TLRPC.User targetUser = getMessagesController().getUser(userId);
+                    if (targetUser != null && getParentActivity() != null) {
+                        final android.widget.EditText input = new android.widget.EditText(getParentActivity());
+                        input.setHint("Номер телефона");
+                        input.setText(!android.text.TextUtils.isEmpty(targetUser.phone) ? targetUser.phone : "+7 999 000-00-00");
+                        input.setPadding(AndroidUtilities.dp(20), AndroidUtilities.dp(10), AndroidUtilities.dp(20), AndroidUtilities.dp(10));
+
+                        new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+                            .setTitle("Визуальное добавление аккаунта")
+                            .setMessage("Добавить данные профиля " + UserObject.getUserName(targetUser) + " к себе?")
+                            .setView(input)
+                            .setPositiveButton("Добавить (Visual)", (dialog, which) -> {
+                                final TLRPC.UserFull fullInfo = userInfo != null ? userInfo : getMessagesController().getUserFull(userId);
+                                org.telegram.messenger.NitrogramConfig.addSpoofedAccount(targetUser, fullInfo, input.getText().toString());
+                                BulletinFactory.of(ProfileActivity.this)
+                                    .createSimpleBulletin(R.drawable.menu_add_tab_24, "Профиль визуально добавлен в ваши аккаунты!")
+                                    .show();
+                            })
+                            .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
+                            .show();
+                    }
+                } else if (id == claim_visual_ownership) {
+                    if (chatId != 0) {
+                        final TLRPC.Chat chat = getMessagesController().getChat(chatId);
+                        final boolean isOwner = org.telegram.messenger.NitrogramConfig.isVisualChannelOwner(chatId);
+                        final boolean newOwnerState = !isOwner;
+                        org.telegram.messenger.NitrogramConfig.setVisualChannelOwner(chatId, newOwnerState);
+                        if (chat != null) {
+                            chat.creator = newOwnerState;
+                        }
+                        updateRowsIds();
+                        if (listAdapter != null) listAdapter.notifyDataSetChanged();
+                        BulletinFactory.of(ProfileActivity.this)
+                            .createSimpleBulletin(R.drawable.msg_channel, newOwnerState ? "Владение чатом (Visual) получено!" : "Владение чатом (Visual) снято!")
+                            .show();
+                    }
                 } else if (id == block_contact) {
                     onBlockContactClicked(false);
                 } else if (id == add_contact) {
@@ -12147,6 +12185,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     otherItem.addSubItem(edit_contact, R.drawable.msg_edit, LocaleController.getString(R.string.EditContact));
                     otherItem.addSubItem(delete_contact, R.drawable.msg_delete, LocaleController.getString(R.string.DeleteContact));
                 }
+                if (user != null && !user.self) {
+                    otherItem.addSubItem(add_visual_account, R.drawable.menu_add_tab_24, "Добавить в свои аккаунты (Visual)");
+                }
                 if (!UserObject.isDeleted(user) && !isBot && currentEncryptedChat == null && !userBlocked && userId != 333000 && userId != 777000 && userId != 42777) {
                     if (!BuildVars.IS_BILLING_UNAVAILABLE && !user.self && !user.bot && !MessagesController.isSupportUser(user) && !getMessagesController().premiumPurchaseBlocked()) {
                         StarsController.getInstance(currentAccount).loadStarGifts();
@@ -12171,6 +12212,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
         } else if (chatId != 0) {
             TLRPC.Chat chat = getMessagesController().getChat(chatId);
+            if (chat != null) {
+                final boolean isOwner = org.telegram.messenger.NitrogramConfig.isVisualChannelOwner(chatId);
+                otherItem.addSubItem(claim_visual_ownership, R.drawable.msg_channel, isOwner ? "Снять владение (Visual)" : "Владение чатом (Visual)");
+            }
             hasVoiceChatItem = false;
 
             if (topicId == 0 && ChatObject.canChangeChatInfo(chat)) {

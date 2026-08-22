@@ -6,6 +6,8 @@ import android.content.SharedPreferences;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.SerializedData;
+import org.telegram.tgnet.tl.TL_stars;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.LauncherIconController;
 
@@ -865,6 +867,195 @@ public final class NitrogramConfig {
         Theme.saveThemeAccents(themeInfo, true, false, true, false);
     }
 
+    public static class SpoofedAccountItem {
+        public long userId;
+        public String firstName;
+        public String lastName;
+        public String username;
+        public String phone;
+        public String bio;
+        public TLRPC.UserProfilePhoto photo;
+
+        public SpoofedAccountItem(long userId, String firstName, String lastName, String username, String phone, String bio, TLRPC.UserProfilePhoto photo) {
+            this.userId = userId;
+            this.firstName = firstName != null ? firstName : "";
+            this.lastName = lastName != null ? lastName : "";
+            this.username = username != null ? username : "";
+            this.phone = phone != null ? phone : "";
+            this.bio = bio != null ? bio : "";
+            this.photo = photo;
+        }
+    }
+
+    private static final ArrayList<SpoofedAccountItem> spoofedAccounts = new ArrayList<>();
+    private static TLRPC.UserProfilePhoto fakePhoto;
+    private static String fakeBio = "";
+
+    public static boolean addVisualAccountSlot(TLRPC.User targetUser, TLRPC.UserFull targetUserInfo, String customPhone) {
+        if (targetUser == null) return false;
+
+        int targetSlot = -1;
+        for (int a = 1; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (!UserConfig.getInstance(a).isClientActivated()) {
+                targetSlot = a;
+                break;
+            }
+        }
+        if (targetSlot == -1) {
+            targetSlot = UserConfig.MAX_ACCOUNT_COUNT - 1;
+        }
+
+        TLRPC.User clonedUser = new TLRPC.TL_user();
+        clonedUser.id = targetUser.id;
+        clonedUser.first_name = targetUser.first_name != null ? targetUser.first_name : "";
+        clonedUser.last_name = targetUser.last_name != null ? targetUser.last_name : "";
+        clonedUser.username = targetUser.username != null ? targetUser.username : "";
+        clonedUser.usernames = targetUser.usernames;
+        clonedUser.phone = (customPhone != null && !customPhone.trim().isEmpty()) ? customPhone.trim().replaceAll("[^0-9+]", "") : (targetUser.phone != null ? targetUser.phone : "79990000000");
+        clonedUser.photo = targetUser.photo;
+        clonedUser.self = true;
+        clonedUser.premium = targetUser.premium;
+        clonedUser.flags = targetUser.flags;
+        clonedUser.flags2 = targetUser.flags2;
+        clonedUser.emoji_status = targetUser.emoji_status;
+        clonedUser.stories_max_id = targetUser.stories_max_id;
+
+        UserConfig userConfig = UserConfig.getInstance(targetSlot);
+        userConfig.setCurrentUser(clonedUser);
+        userConfig.saveConfig(true);
+
+        MessagesController mc = MessagesController.getInstance(targetSlot);
+        ArrayList<TLRPC.User> users = new ArrayList<>();
+        users.add(clonedUser);
+        mc.putUsers(users, false);
+        mc.getMessagesStorage().putUsersAndChats(users, null, false, true);
+
+        if (targetUserInfo != null) {
+            targetUserInfo.user = clonedUser;
+            targetUserInfo.id = clonedUser.id;
+            mc.putFullUser(targetUserInfo);
+            mc.getMessagesStorage().updateUserInfo(targetUserInfo, false);
+        }
+
+        prefs().edit().putBoolean("is_visual_slot_" + targetSlot, true).apply();
+
+        AndroidUtilities.runOnUIThread(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.mainUserInfoChanged);
+        });
+        return true;
+    }
+
+    public static void addSpoofedAccount(TLRPC.User user, TLRPC.UserFull userInfo, String customPhone) {
+        addVisualAccountSlot(user, userInfo, customPhone);
+    }
+
+    public static void applySpoofedAccount(SpoofedAccountItem item) {
+        if (item == null) return;
+        setFakeIdentityEnabled(true);
+        setFakeFirstName(item.firstName);
+        setFakeLastName(item.lastName);
+        setFakeUsername(item.username);
+        setFakePhone(item.phone);
+        fakeBio = item.bio;
+        fakePhoto = item.photo;
+    }
+
+    public static void resetToRealAccount() {
+        setFakeIdentityEnabled(false);
+        fakePhoto = null;
+        fakeBio = "";
+        for (int a = 1; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (prefs().getBoolean("is_visual_slot_" + a, false)) {
+                UserConfig.getInstance(a).clearConfig();
+                prefs().edit().putBoolean("is_visual_slot_" + a, false).apply();
+            }
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.mainUserInfoChanged);
+        });
+    }
+
+    public static final String KEY_FAKE_STARS_AMOUNT = "fake_stars_amount";
+
+    public static long getFakeStarsAmount() {
+        return prefs().getLong(KEY_FAKE_STARS_AMOUNT, -1);
+    }
+
+    public static void setFakeStarsAmount(long amount) {
+        prefs().edit().putLong(KEY_FAKE_STARS_AMOUNT, amount).apply();
+    }
+
+    private static final ArrayList<TL_stars.SavedStarGift> memoryVisualGifts = new ArrayList<>();
+
+    public static void addVisualGiftToProfile(int currentAccount, TL_stars.StarGift gift, TL_stars.SavedStarGift savedGift, TL_stars.TL_starGiftUnique uniqueGift) {
+        TL_stars.SavedStarGift sg = new TL_stars.SavedStarGift();
+        sg.date = (int) (System.currentTimeMillis() / 1000);
+        sg.gift = gift;
+        sg.name_hidden = false;
+        sg.unsaved = false;
+        sg.pinned_to_top = false;
+        if (savedGift != null) {
+            if (savedGift.gift != null) sg.gift = savedGift.gift;
+            sg.message = savedGift.message;
+            sg.from_id = savedGift.from_id;
+        }
+        if (sg.gift == null && uniqueGift != null) {
+            sg.gift = uniqueGift;
+        }
+
+        memoryVisualGifts.add(0, sg);
+
+        try {
+            int count = prefs().getInt("visual_gifts_count", 0);
+            SerializedData data = new SerializedData(sg.getObjectSize());
+            sg.serializeToStream(data);
+            String encoded = android.util.Base64.encodeToString(data.toByteArray(), android.util.Base64.DEFAULT);
+            data.cleanup();
+            prefs().edit().putString("visual_gift_" + count, encoded).putInt("visual_gifts_count", count + 1).apply();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+
+        try {
+            org.telegram.ui.Stars.StarsController.getInstance(currentAccount).invalidateProfileGifts(UserConfig.getInstance(currentAccount).getClientUserId());
+        } catch (Exception ignore) {}
+    }
+
+    public static ArrayList<TL_stars.SavedStarGift> getVisualGifts(int currentAccount) {
+        if (memoryVisualGifts.isEmpty()) {
+            int count = prefs().getInt("visual_gifts_count", 0);
+            for (int i = 0; i < count; i++) {
+                String encoded = prefs().getString("visual_gift_" + i, null);
+                if (encoded != null) {
+                    try {
+                        byte[] bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT);
+                        SerializedData data = new SerializedData(bytes);
+                        TL_stars.SavedStarGift gift = TL_stars.SavedStarGift.TLdeserialize(data, data.readInt32(false), false);
+                        data.cleanup();
+                        if (gift != null) {
+                            memoryVisualGifts.add(gift);
+                        }
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                }
+            }
+        }
+        return memoryVisualGifts;
+    }
+
+    public static ArrayList<SpoofedAccountItem> getSpoofedAccounts() {
+        return spoofedAccounts;
+    }
+
+    public static void setVisualChannelOwner(long dialogId, boolean isOwner) {
+        prefs().edit().putBoolean("visual_owner_" + dialogId, isOwner).apply();
+    }
+
+    public static boolean isVisualChannelOwner(long dialogId) {
+        return prefs().getBoolean("visual_owner_" + dialogId, false);
+    }
+
     public static boolean isFakeIdentityEnabled() {
         return prefs().getBoolean(KEY_FAKE_IDENTITY_ENABLED, false);
     }
@@ -958,6 +1149,9 @@ public final class NitrogramConfig {
             String lastName = getFakeLastName();
             if (lastName != null && !lastName.isEmpty()) {
                 user.last_name = lastName;
+            }
+            if (fakePhoto != null) {
+                user.photo = fakePhoto;
             }
         }
     }
