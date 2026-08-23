@@ -3,16 +3,13 @@ package org.telegram.messenger;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 import android.text.TextUtils;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.ui.ActionBar.AlertDialog;
-import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.BulletinFactory;
 
 import java.io.BufferedReader;
@@ -24,8 +21,8 @@ import java.net.URL;
 public class NitrogramUpdater {
 
     private static final String TAG = "NitrogramUpdater";
-    private static final String GITHUB_API_RELEASES = "https://api.github.com/repos/Bebrazui/Nitrogram/releases/latest";
-    private static final String GITHUB_RELEASES_PAGE = "https://github.com/Bebrazui/Nitrogram/releases";
+    private static final String VERSION_JSON_URL = "https://raw.githubusercontent.com/Bebrazui/Nitrogram/master/version.json";
+    private static final String GITHUB_RELEASES_LATEST = "https://github.com/Bebrazui/Nitrogram/releases/latest";
     private static final String PREF_LAST_CHECK = "nitro_last_update_check_time";
     private static final long CHECK_INTERVAL_MS = 60 * 60 * 1000L; // 1 hour
 
@@ -48,19 +45,21 @@ public class NitrogramUpdater {
         MessagesController.getGlobalMainSettings().edit().putLong(PREF_LAST_CHECK, System.currentTimeMillis()).apply();
 
         Utilities.globalQueue.postRunnable(() -> {
-            HttpURLConnection connection = null;
-            try {
-                URL url = new URL(GITHUB_API_RELEASES);
-                connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-                connection.setRequestProperty("User-Agent", "Nitrogram-App/" + BuildVars.BUILD_VERSION_STRING);
-                connection.setRequestProperty("Accept", "application/vnd.github.v3+json");
-                connection.setConnectTimeout(8000);
-                connection.setReadTimeout(8000);
+            String tagName = null;
+            String body = null;
+            String apkDownloadUrl = null;
 
-                int responseCode = connection.getResponseCode();
-                if (responseCode == 200) {
-                    InputStream in = connection.getInputStream();
+            // 1. Попытка через version.json на GitHub Raw (нет лимитов API, никогда не возвращает 403)
+            try {
+                URL url = new URL(VERSION_JSON_URL);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)");
+                conn.setConnectTimeout(6000);
+                conn.setReadTimeout(6000);
+
+                if (conn.getResponseCode() == 200) {
+                    InputStream in = conn.getInputStream();
                     BufferedReader reader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
                     StringBuilder sb = new StringBuilder();
                     String line;
@@ -70,105 +69,90 @@ public class NitrogramUpdater {
                     reader.close();
 
                     JSONObject json = new JSONObject(sb.toString());
-                    String tagName = json.optString("tag_name", "").trim();
-                    String releaseName = json.optString("name", "").trim();
-                    String body = json.optString("body", "").trim();
-                    String htmlUrl = json.optString("html_url", GITHUB_RELEASES_PAGE);
-
-                    String apkDownloadUrl = null;
-                    JSONArray assets = json.optJSONArray("assets");
-                    if (assets != null) {
-                        for (int i = 0; i < assets.length(); i++) {
-                            JSONObject asset = assets.getJSONObject(i);
-                            String assetName = asset.optString("name", "");
-                            if (assetName.endsWith(".apk")) {
-                                apkDownloadUrl = asset.optString("browser_download_url", null);
-                                break;
-                            }
-                        }
-                    }
-
-                    if (apkDownloadUrl == null) {
-                        apkDownloadUrl = htmlUrl;
-                    }
-
-                    String currentVersion = BuildVars.BUILD_VERSION_STRING;
-                    boolean isNewer = isVersionNewer(tagName, currentVersion);
-
-                    final boolean hasUpdate = isNewer;
-                    final String displayTag = !TextUtils.isEmpty(tagName) ? tagName : releaseName;
-                    final String finalDownloadUrl = apkDownloadUrl;
-                    final String finalBody = body;
-
-                    AndroidUtilities.runOnUIThread(() -> {
-                        if (activity.isFinishing()) return;
-
-                        if (callback != null) {
-                            callback.onResult(hasUpdate, displayTag, finalBody, finalDownloadUrl);
-                        }
-
-                        if (hasUpdate) {
-                            showUpdateDialog(activity, displayTag, finalBody, finalDownloadUrl);
-                        } else if (isManual) {
-                            try {
-                                BulletinFactory.global().createSimpleBulletin(
-                                        R.raw.chats_infotip,
-                                        LocaleController.getString(R.string.YourVersionIsLatest)
-                                ).show();
-                            } catch (Throwable ignore) {}
-                        }
-                    });
-                } else {
-                    if (isManual) {
-                        AndroidUtilities.runOnUIThread(() -> {
-                            if (!activity.isFinishing()) {
-                                try {
-                                    BulletinFactory.global().createSimpleBulletin(
-                                            R.raw.error,
-                                            "Не удалось проверить обновления",
-                                            "Код ответа: " + responseCode
-                                    ).show();
-                                } catch (Throwable ignore) {}
-                            }
-                        });
-                    }
+                    tagName = json.optString("tag", json.optString("version", ""));
+                    body = json.optString("changelog", "");
+                    apkDownloadUrl = json.optString("apk_url", "");
                 }
+                conn.disconnect();
             } catch (Throwable t) {
-                FileLog.e("Failed checking Nitrogram update", t);
-                if (isManual) {
-                    AndroidUtilities.runOnUIThread(() -> {
-                        if (!activity.isFinishing()) {
-                            try {
-                                BulletinFactory.global().createSimpleBulletin(
-                                        R.raw.error,
-                                        "Ошибка проверки обновлений",
-                                        t.getMessage()
-                                ).show();
-                            } catch (Throwable ignore) {}
+                FileLog.e("NitrogramUpdater version.json failed: " + t);
+            }
+
+            // 2. Фолбэк через редирект github.com/releases/latest (также без лимитов API)
+            if (TextUtils.isEmpty(tagName)) {
+                try {
+                    URL url = new URL(GITHUB_RELEASES_LATEST);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setInstanceFollowRedirects(false);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)");
+                    conn.setConnectTimeout(6000);
+                    conn.setReadTimeout(6000);
+
+                    int code = conn.getResponseCode();
+                    if (code == 302 || code == 301) {
+                        String location = conn.getHeaderField("Location");
+                        if (!TextUtils.isEmpty(location) && location.contains("/tag/")) {
+                            tagName = location.substring(location.lastIndexOf("/tag/") + 5);
+                            apkDownloadUrl = "https://github.com/Bebrazui/Nitrogram/releases/download/" + tagName + "/Nitrogram-" + tagName + ".apk";
                         }
-                    });
-                }
-            } finally {
-                if (connection != null) {
-                    try {
-                        connection.disconnect();
-                    } catch (Throwable ignore) {}
+                    }
+                    conn.disconnect();
+                } catch (Throwable t) {
+                    FileLog.e("NitrogramUpdater redirect check failed: " + t);
                 }
             }
+
+            final String finalTag = tagName;
+            final String finalBody = body;
+            final String finalApkUrl = !TextUtils.isEmpty(apkDownloadUrl) ? apkDownloadUrl : GITHUB_RELEASES_LATEST;
+
+            AndroidUtilities.runOnUIThread(() -> {
+                if (activity.isFinishing()) return;
+
+                if (TextUtils.isEmpty(finalTag)) {
+                    if (isManual) {
+                        try {
+                            BulletinFactory.global().createSimpleBulletin(
+                                    R.raw.error,
+                                    "Не удалось проверить обновления",
+                                    "Проверьте подключение к сети"
+                            ).show();
+                        } catch (Throwable ignore) {}
+                    }
+                    return;
+                }
+
+                String currentVersion = BuildVars.BUILD_VERSION_STRING;
+                boolean isNewer = isVersionNewer(finalTag, currentVersion);
+
+                if (callback != null) {
+                    callback.onResult(isNewer, finalTag, finalBody, finalApkUrl);
+                }
+
+                if (isNewer) {
+                    showUpdateDialog(activity, finalTag, finalBody, finalApkUrl);
+                } else if (isManual) {
+                    try {
+                        BulletinFactory.global().createSimpleBulletin(
+                                R.raw.chats_infotip,
+                                LocaleController.getString(R.string.YourVersionIsLatest)
+                        ).show();
+                    } catch (Throwable ignore) {}
+                }
+            });
         });
     }
 
     private static void showUpdateDialog(Context context, String version, String changelog, String downloadUrl) {
         if (context == null) return;
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Доступно обновление Nitrogram");
+        builder.setTitle("Доступно обновление Nitrogram (" + version + ")");
 
         StringBuilder msg = new StringBuilder();
-        msg.append("Вышла новая версия: ").append(version).append("\n\n");
         if (!TextUtils.isEmpty(changelog)) {
-            msg.append("Что нового:\n").append(changelog).append("\n\n");
+            msg.append(changelog).append("\n\n");
         }
-        msg.append("Хотите скачать и установить обновление сейчас?");
+        msg.append("Хотите скачать и установить новую версию?");
         builder.setMessage(msg.toString());
 
         builder.setPositiveButton("Обновить", (dialog, which) -> {
@@ -185,8 +169,8 @@ public class NitrogramUpdater {
                     try {
                         BulletinFactory.global().createSimpleBulletin(
                                 R.raw.ic_download,
-                                "Загрузка обновления началась",
-                                "Следите за статусом в шторке уведомлений"
+                                "Загрузка начата",
+                                "Файл будет сохранён в папку Загрузки"
                         ).show();
                     } catch (Throwable ignore) {}
                 } else {
