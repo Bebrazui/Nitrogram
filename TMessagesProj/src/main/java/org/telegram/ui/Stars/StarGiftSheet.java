@@ -2461,7 +2461,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
 //                });
 //            } else {
                 setGiftImage(imageView[page].getImageReceiver(), gift, 160);
-                imageViewAttributes[page] = findAttribute(gift.attributes, TL_stars.starGiftAttributeModel.class);
+                imageViewAttributes[page] = findAttribute(gift != null ? gift.attributes : null, TL_stars.starGiftAttributeModel.class);
 //            }
             onSwitchPage(currentPage);
         }
@@ -4600,7 +4600,7 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                     null, releasedByText(savedStarGift.gift)
                 );
             } else if (isForChannel && !myProfile) {
-                topView.setText(0, title = getString(R.string.Gift2TitleProfile), null, null, releasedByText(savedStarGift.gift.released_by));
+                topView.setText(0, title = getString(R.string.Gift2TitleProfile), null, null, releasedByText(savedStarGift.gift != null ? savedStarGift.gift.released_by : null));
             } else if ((!myProfile || savedStarGift.can_upgrade) && savedStarGift.upgrade_stars > 0) {
                 topView.setText(0,
                         title = getString(myProfile ? R.string.Gift2TitleReceived : R.string.Gift2TitleProfile),
@@ -4642,8 +4642,9 @@ public class StarGiftSheet extends BottomSheetWithRecyclerListView implements No
                 });
             }
             tableView.addRow(getString(R.string.StarsTransactionDate), LocaleController.formatString(R.string.formatDateAtTime, LocaleController.getInstance().getFormatterGiveawayCard().format(new Date(savedStarGift.date * 1000L)), LocaleController.getInstance().getFormatterDay().format(new Date(savedStarGift.date * 1000L))));
-            tableView.addRow(getString(R.string.Gift2Value), replaceStarsWithPlain(TextUtils.concat("⭐️ " + LocaleController.formatNumber(savedStarGift.gift.stars + savedStarGift.upgrade_stars, ','), " ", canConvert() && !refunded ? ButtonSpan.make(formatPluralStringComma("Gift2ButtonSell", (int) savedStarGift.convert_stars), this::convert, resourcesProvider) : ""), .8f));
-            if (savedStarGift.gift.limited && !refunded) {
+            long giftStars = (savedStarGift.gift != null ? savedStarGift.gift.stars : 0) + savedStarGift.upgrade_stars;
+            tableView.addRow(getString(R.string.Gift2Value), replaceStarsWithPlain(TextUtils.concat("⭐️ " + LocaleController.formatNumber(giftStars, ','), " ", canConvert() && !refunded ? ButtonSpan.make(formatPluralStringComma("Gift2ButtonSell", (int) savedStarGift.convert_stars), this::convert, resourcesProvider) : ""), .8f));
+            if (savedStarGift.gift != null && savedStarGift.gift.limited && !refunded) {
                 addAvailabilityRow(tableView, currentAccount, savedStarGift.gift, resourcesProvider);
             }
 //            if (!refunded && savedStarGift.can_upgrade) {

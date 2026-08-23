@@ -78,7 +78,8 @@ public class ModSettingsActivity extends BaseFragment {
         items.add(new Item(5, 2, R.drawable.msg_info, "Другое", null, false));
         items.add(new Item(101, 3, ""));
 
-        items.add(new Item(200, 1, "Ссылки"));
+        items.add(new Item(200, 1, "Ссылки и обновления"));
+        items.add(new Item(9, 2, R.drawable.msg_download, "Проверить обновления", "GitHub Releases", true));
         items.add(new Item(6, 2, R.drawable.msg_channel, "Канал", "@nitrogram_offc", true));
         items.add(new Item(7, 2, R.drawable.msg_groups, "Моды", "@nitromod", true));
         items.add(new Item(8, 2, R.drawable.msg_language, "GitHub", "Bebrazui/Nitrogram", false));
@@ -127,6 +128,8 @@ public class ModSettingsActivity extends BaseFragment {
                 Browser.openUrl(getParentActivity(), "https://t.me/nitromod");
             } else if (item.id == 8) {
                 Browser.openUrl(getParentActivity(), "https://github.com/Bebrazui/Nitrogram");
+            } else if (item.id == 9) {
+                org.telegram.messenger.NitrogramUpdater.checkUpdate(getParentActivity(), true, null);
             }
         });
 

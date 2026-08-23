@@ -994,6 +994,7 @@ public final class NitrogramConfig {
         sg.name_hidden = false;
         sg.unsaved = false;
         sg.pinned_to_top = false;
+        sg.refunded = false;
 
         long clientUserId = UserConfig.getInstance(currentAccount).getClientUserId();
         TLRPC.TL_peerUser myPeer = new TLRPC.TL_peerUser();
@@ -1003,6 +1004,18 @@ public final class NitrogramConfig {
             sg.gift = savedGift.gift;
             sg.message = savedGift.message;
             sg.from_id = savedGift.from_id;
+            if (savedGift.date > 0) {
+                sg.date = savedGift.date;
+            }
+            sg.convert_stars = savedGift.convert_stars;
+            sg.upgrade_stars = savedGift.upgrade_stars;
+            sg.transfer_stars = savedGift.transfer_stars;
+            sg.can_export_at = savedGift.can_export_at;
+            sg.can_transfer_at = savedGift.can_transfer_at;
+            sg.can_resell_at = savedGift.can_resell_at;
+            sg.collection_id = savedGift.collection_id;
+            sg.name_hidden = savedGift.name_hidden;
+            sg.can_upgrade = savedGift.can_upgrade;
         }
         if (sg.gift == null && gift != null) {
             sg.gift = gift;
@@ -1023,7 +1036,6 @@ public final class NitrogramConfig {
         try {
             int count = prefs().getInt("visual_gifts_count", 0);
             SerializedData data = new SerializedData();
-            data.writeInt32(sg.constructor);
             sg.serializeToStream(data);
             String encoded = android.util.Base64.encodeToString(data.toByteArray(), android.util.Base64.NO_WRAP);
             data.cleanup();
@@ -1054,6 +1066,9 @@ public final class NitrogramConfig {
                         TL_stars.SavedStarGift gift = TL_stars.SavedStarGift.TLdeserialize(data, constructor, false);
                         data.cleanup();
                         if (gift != null) {
+                            if (gift.date <= 0 || (gift.refunded && gift.from_id == null)) {
+                                continue;
+                            }
                             if (gift.gift instanceof TL_stars.TL_starGiftUnique) {
                                 TL_stars.TL_starGiftUnique ug = (TL_stars.TL_starGiftUnique) gift.gift;
                                 ug.owner_id = myPeer;

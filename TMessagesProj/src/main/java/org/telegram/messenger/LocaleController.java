@@ -2702,9 +2702,10 @@ public class LocaleController {
                     if (diff < 1) {
                         return LocaleController.getString(R.string.Lately);
                     } else if (diff < 60) {
-                        return LocaleController.formatPluralString("LastSeenMinutes", diff);
+                        return LocaleController.formatPluralString("MinutesAgo", diff, diff);
                     } else {
-                        return LocaleController.formatPluralString("LastSeenHours", (int) Math.ceil(diff / 60.0f));
+                        int hours = (int) Math.ceil(diff / 60.0f);
+                        return LocaleController.formatPluralString("HoursAgo", hours, hours);
                     }
                 }
                 return LocaleController.formatString(R.string.LastSeenFormatted, LocaleController.formatString("TodayAtFormatted", R.string.TodayAtFormatted, getInstance().getFormatterDay().format(new Date(date))));

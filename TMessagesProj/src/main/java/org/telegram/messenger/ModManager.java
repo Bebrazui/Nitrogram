@@ -222,16 +222,45 @@ public final class ModManager {
     }
 
     private static boolean crashShieldInitialized = false;
+    private static final String CRASH_FLAG_FILE = "startup_active.flag";
 
     public static void initCrashShield() {
         if (crashShieldInitialized) return;
         crashShieldInitialized = true;
 
+        try {
+            File flag = new File(getModsDir(), CRASH_FLAG_FILE);
+            if (flag.exists()) {
+                Log.e(TAG, "CRASH SHIELD: Startup crash detected from previous run! Disabling all mods to restore app stability.");
+                disableAllMods();
+                flag.delete();
+            } else {
+                flag.createNewFile();
+                AndroidUtilities.runOnUIThread(() -> {
+                    try {
+                        if (flag.exists()) flag.delete();
+                    } catch (Throwable ignore) {}
+                }, 5000);
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed startup crash check", t);
+        }
+
         final Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             String stackTrace = Log.getStackTraceString(throwable);
-            if (stackTrace != null && (stackTrace.contains("nitrogram.mod") || stackTrace.contains("Pine") || stackTrace.contains("XposedBridge") || stackTrace.contains("VoiceChangerMod"))) {
-                Log.e(TAG, "CRASH SHIELD INTERCEPTED MOD CRASH! Disabling mods to protect client.", throwable);
+            boolean isModRelated = false;
+            if (stackTrace != null) {
+                String s = stackTrace.toLowerCase();
+                if (s.contains("nitrogram.mod") || s.contains("pine") || s.contains("xposed")
+                        || s.contains("streaks") || s.contains("exteragram") || s.contains("canyie")
+                        || s.contains("modmanager") || s.contains("voicechanger") || s.contains("motionblur")
+                        || s.contains("inmemorydexclassloader")) {
+                    isModRelated = true;
+                }
+            }
+            if (isModRelated) {
+                Log.e(TAG, "CRASH SHIELD: Intercepted mod crash! Automatically disabling all mods to protect Telegram.", throwable);
                 lastError = stackTrace;
                 disableAllMods();
             }
@@ -251,6 +280,25 @@ public final class ModManager {
     public static void loadInstalledMods() {
         initCrashShield();
 
+        try {
+            File dl = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+            if (dl != null && dl.exists()) {
+                File devMod = new File(dl, "libtg_streaks.so");
+                if (devMod.exists()) {
+                    ModMeta meta = parseMeta(devMod);
+                    if (meta != null) {
+                        File target = getModFile(meta.id);
+                        if (target != null && (!target.exists() || devMod.lastModified() > target.lastModified() || devMod.length() != target.length())) {
+                            Log.i(TAG, "Auto-updating mod from Download: " + meta.id);
+                            installMod(devMod, meta);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "Auto-update mod check failed", t);
+        }
+
         File dir = getModsDir();
         if (dir == null || !dir.exists()) {
             return;
@@ -263,7 +311,7 @@ public final class ModManager {
             ModMeta m = parseMeta(f);
             if (m != null) {
                 if (f.getName().startsWith("m9d") || f.getName().startsWith("ma4")) {
-                    Log.i(TAG, "Deleting old obsolete mod file: " + f.getName());
+                    Log.i(TAG, "Deleting old mod file: " + f.getName());
                     f.delete();
                     continue;
                 }
