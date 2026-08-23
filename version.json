@@ -1,0 +1,8 @@
+{
+  "version": "12.9.2",
+  "tag": "v12.9.2",
+  "name": "Nitrogram v12.9.2",
+  "changelog": "• Автообновление через GitHub\n• Исправление визуальных подарков\n• Исправление строки времени (LOC_ERR)\n• Оптимизация CrashShield\n• Поддержка стриков (Streaks)",
+  "apk_url": "https://github.com/Bebrazui/Nitrogram/releases/download/v12.9.2/Nitrogram-v12.9.2.apk",
+  "release_url": "https://github.com/Bebrazui/Nitrogram/releases/tag/v12.9.2"
+}
