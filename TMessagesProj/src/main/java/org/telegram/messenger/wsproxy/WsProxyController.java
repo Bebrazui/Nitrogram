@@ -55,6 +55,27 @@ public final class WsProxyController {
         return prefs().getBoolean(KEY_ENABLED, true);
     }
 
+    /** Bring the proxy up synchronously if it should be running but isn't. */
+    public static synchronized boolean ensureRunningSync() {
+        if (!isEnabled()) {
+            return false;
+        }
+        if (running) {
+            return true;
+        }
+        if (!WsProxyNative.isAvailable()) {
+            return false;
+        }
+        final String secret = ensureSecret();
+        boolean ok = startNative(secret);
+        if (ok) {
+            running = true;
+            starting = false;
+            applyToTelegram(true);
+        }
+        return ok;
+    }
+
     /** Bring the proxy up if it should be running but isn't (e.g. recovery after a failed start). */
     public static void ensureRunning() {
         if (isEnabled() && !isRunning()) {
@@ -257,6 +278,18 @@ public final class WsProxyController {
                         .putBoolean("proxy_enabled", true)
                         .apply();
                 ConnectionsManager.setProxySettings(true, HOST, boundPort, "", "", secret);
+
+                // Ensure push token is registered to Telegram servers through the working proxy connection
+                if (!TextUtils.isEmpty(org.telegram.messenger.SharedConfig.pushString)) {
+                    for (int a = 0; a < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                        if (org.telegram.messenger.UserConfig.getInstance(a).isClientActivated()) {
+                            final int acc = a;
+                            org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                                MessagesController.getInstance(acc).registerForPush(org.telegram.messenger.SharedConfig.pushType, org.telegram.messenger.SharedConfig.pushString);
+                            });
+                        }
+                    }
+                }
             } else {
                 // Only detach if Telegram is currently pointed at our embedded (loopback) proxy.
                 boolean ours = HOST.equals(preferences.getString("proxy_ip", ""));

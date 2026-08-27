@@ -27,6 +27,9 @@ public class GcmPushListenerService extends FirebaseMessagingService {
             FileLog.d("FCM received data: " + data + " from: " + from);
         }
 
+        ApplicationLoader.postInitApplication();
+        org.telegram.messenger.wsproxy.WsProxyController.ensureRunningSync();
+
         PushListenerController.processRemoteMessage(PushListenerController.PUSH_TYPE_FIREBASE, data.get("p"), time);
     }
 
@@ -37,6 +40,7 @@ public class GcmPushListenerService extends FirebaseMessagingService {
                 FileLog.d("Refreshed FCM token: " + token);
             }
             ApplicationLoader.postInitApplication();
+            org.telegram.messenger.wsproxy.WsProxyController.ensureRunningSync();
             PushListenerController.sendRegistrationToServer(PushListenerController.PUSH_TYPE_FIREBASE, token);
         });
     }

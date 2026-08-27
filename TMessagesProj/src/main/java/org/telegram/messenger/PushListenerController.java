@@ -104,10 +104,12 @@ public class PushListenerController {
                 FileLog.d(tag + " PRE INIT APP");
             }
             ApplicationLoader.postInitApplication();
+            org.telegram.messenger.wsproxy.WsProxyController.ensureRunningSync();
             if (BuildVars.LOGS_ENABLED) {
                 FileLog.d(tag + " POST INIT APP");
             }
             Utilities.stageQueue.postRunnable(() -> {
+                org.telegram.messenger.wsproxy.WsProxyController.ensureRunningSync();
                 if (BuildVars.LOGS_ENABLED) {
                     FileLog.d(tag + " START PROCESSING");
                 }
