@@ -266,6 +266,7 @@ public class ApplicationLoader extends Application {
 
         ApplicationLoader app = (ApplicationLoader) ApplicationLoader.applicationContext;
         app.initPushServices();
+        startPushService();
         BackgroundPushSyncReceiver.startSync(applicationContext);
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app initied");
@@ -367,20 +368,22 @@ public class ApplicationLoader extends Application {
 
     public static void startPushService() {
         SharedPreferences preferences = MessagesController.getGlobalNotificationsSettings();
-        boolean enabled;
-        if (preferences.contains("pushService")) {
-            enabled = preferences.getBoolean("pushService", true);
-        } else {
-            enabled = MessagesController.getMainSettings(UserConfig.selectedAccount).getBoolean("keepAliveService", false);
-        }
+        boolean enabled = preferences.getBoolean("pushService", true);
         if (enabled) {
             try {
-                applicationContext.startService(new Intent(applicationContext, NotificationsService.class));
+                Intent intent = new Intent(applicationContext, NotificationsService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    applicationContext.startForegroundService(intent);
+                } else {
+                    applicationContext.startService(intent);
+                }
             } catch (Throwable ignore) {
-
             }
         } else {
-            applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+            try {
+                applicationContext.stopService(new Intent(applicationContext, NotificationsService.class));
+            } catch (Throwable ignore) {
+            }
         }
     }
 
