@@ -30,6 +30,7 @@ public class ScreenReceiver extends BroadcastReceiver {
             }
             ConnectionsManager.getInstance(UserConfig.selectedAccount).setAppPaused(false, true);
             ApplicationLoader.isScreenOn = true;
+            BackgroundPushSyncReceiver.triggerSync(context);
         }
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.screenStateChanged);
     }

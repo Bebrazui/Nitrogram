@@ -595,6 +595,8 @@
 
         <receiver android:name=".ShortcutResultReceiver" android:exported="false"/>
 
+        <receiver android:name=".BackgroundPushSyncReceiver" android:exported="false"/>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

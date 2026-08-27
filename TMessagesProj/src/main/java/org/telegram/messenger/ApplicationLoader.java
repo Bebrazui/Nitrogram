@@ -266,6 +266,7 @@ public class ApplicationLoader extends Application {
 
         ApplicationLoader app = (ApplicationLoader) ApplicationLoader.applicationContext;
         app.initPushServices();
+        BackgroundPushSyncReceiver.startSync(applicationContext);
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("app initied");
         }
