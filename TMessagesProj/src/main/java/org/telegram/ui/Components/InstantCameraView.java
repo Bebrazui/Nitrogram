@@ -263,6 +263,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
     private final LinearLayout buttonsLayout;
     private final int buttonsSizePx;
+    private final ZoomControlView zoomControlView;
 
 
     @SuppressLint("ClickableViewAccessibility")
@@ -432,49 +433,72 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         addView(textureOverlayView, new LayoutParams(AndroidUtilities.roundPlayingMessageSize, AndroidUtilities.roundPlayingMessageSize, Gravity.CENTER));
 
         setVisibilityFromPause = false;
-        flashViews.add(flashButton);
-        createZoomButtons(context);
+        setVisibility(INVISIBLE);
+
+        zoomControlView = new ZoomControlView(context);
+        LayoutParams zoomLp = new LayoutParams(dp(260), dp(50), Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL);
+        zoomLp.topMargin = AndroidUtilities.roundPlayingMessageSize / 2 + dp(32);
+        addView(zoomControlView, zoomLp);
+        zoomControlView.setDelegate(this::applyZoomAndLens);
     }
 
-    private final ArrayList<TextView> zoomButtons = new ArrayList<>();
-    private final float[] zoomLevels = new float[]{0.6f, 1.0f, 2.0f};
-
-    private void createZoomButtons(Context context) {
-        zoomButtons.clear();
-        for (int i = 0; i < zoomLevels.length; i++) {
-            final float level = zoomLevels[i];
-            TextView tv = new TextView(context);
-            tv.setText(level == 0.6f ? "0.6" : ((int) level + "x"));
-            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-            tv.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-            tv.setTextColor(0xffffffff);
-            tv.setGravity(Gravity.CENTER);
-
-            GradientDrawable bg = new GradientDrawable();
-            bg.setShape(GradientDrawable.OVAL);
-            bg.setColor(level == 1.0f ? 0x66ffffff : 0x22ffffff);
-            tv.setBackground(bg);
-
-            LinearLayout.LayoutParams lp = LayoutHelper.createLinear(32, 32, Gravity.CENTER_VERTICAL);
-            lp.leftMargin = dp(4);
-            tv.setLayoutParams(lp);
-
-            tv.setOnClickListener(v -> setZoomLevel(level));
-
-            buttonsLayout.addView(tv);
-            zoomButtons.add(tv);
-        }
-    }
-
-    public void setZoomLevel(float zoom) {
+    public void applyZoomAndLens(float progress) {
         if (!cameraReady) return;
+
+        boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
+        float zoom;
+        if (hasUltraWide) {
+            if (progress <= 0.25f) {
+                zoom = 0.6f + (progress / 0.25f) * 0.4f;
+            } else if (progress <= 0.625f) {
+                zoom = 1.0f + ((progress - 0.25f) / 0.375f) * 1.0f;
+            } else {
+                zoom = 2.0f + ((progress - 0.625f) / 0.375f) * 1.5f;
+            }
+        } else {
+            zoom = 1.0f + progress * 2.5f;
+        }
+
+        String zoomStr = Math.abs(zoom - 0.6f) < 0.05f ? "0.6x" : (Math.abs(zoom - Math.round(zoom)) < 0.05f ? ((int) Math.round(zoom) + "x") : String.format(java.util.Locale.US, "%.1fx", zoom));
+        if (zoomControlView != null) {
+            zoomControlView.setCustomZoomText(zoomStr);
+        }
+
         if (useCamera2) {
-            if (camera2SessionCurrent != null) {
-                float min = camera2SessionCurrent.getMinZoom();
-                float max = camera2SessionCurrent.getMaxZoom();
-                float target = Utilities.clamp(zoom, max, min);
-                camera2SessionCurrent.setZoom(target);
-                pinchScale = target;
+            if (isFrontface) {
+                if (camera2SessionCurrent != null) {
+                    float target = Utilities.clamp(zoom, camera2SessionCurrent.getMaxZoom(), 1.0f);
+                    camera2SessionCurrent.setZoom(target);
+                    pinchScale = target;
+                }
+            } else {
+                String ultraWideId = Camera2Session.getUltraWideCameraId();
+                String teleId = Camera2Session.getTelephotoCameraId();
+                String mainId = Camera2Session.getMainCameraId();
+
+                if (zoom <= 0.8f && ultraWideId != null) {
+                    if (camera2SessionCurrent == null || !ultraWideId.equals(camera2SessionCurrent.cameraId)) {
+                        switchBackCameraTo(ultraWideId);
+                    }
+                    if (camera2SessionCurrent != null) {
+                        camera2SessionCurrent.setZoom(1.0f);
+                    }
+                } else if (zoom >= 2.8f && teleId != null) {
+                    if (camera2SessionCurrent == null || !teleId.equals(camera2SessionCurrent.cameraId)) {
+                        switchBackCameraTo(teleId);
+                    }
+                    if (camera2SessionCurrent != null) {
+                        camera2SessionCurrent.setZoom(Math.max(1.0f, zoom / 3.0f));
+                    }
+                } else {
+                    if (camera2SessionCurrent == null || !mainId.equals(camera2SessionCurrent.cameraId)) {
+                        switchBackCameraTo(mainId);
+                    }
+                    if (camera2SessionCurrent != null) {
+                        camera2SessionCurrent.setZoom(zoom);
+                    }
+                }
+                pinchScale = zoom;
             }
         } else {
             if (cameraSession != null) {
@@ -483,20 +507,34 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 pinchScale = zoom;
             }
         }
-        updateZoomButtons(zoom);
     }
 
-    private void updateZoomButtons(float currentZoom) {
-        for (int i = 0; i < zoomButtons.size(); i++) {
-            TextView tv = zoomButtons.get(i);
-            float level = zoomLevels[i];
-            boolean selected = Math.abs(currentZoom - level) < 0.25f;
-            GradientDrawable bg = (GradientDrawable) tv.getBackground();
-            if (bg != null) {
-                bg.setColor(selected ? 0x88ffffff : 0x22ffffff);
-            }
-            tv.setTextColor(selected ? 0xffffffff : 0xccffffff);
+    public void switchBackCameraTo(String targetCameraId) {
+        if (!useCamera2 || isFrontface || camera2SessionCurrent == null) return;
+        if (targetCameraId == null || targetCameraId.equals(camera2SessionCurrent.cameraId)) return;
+
+        saveLastCameraBitmap();
+        if (lastBitmap != null) {
+            needDrawFlickerStub = false;
+            textureOverlayView.setImageBitmap(lastBitmap);
+            textureOverlayView.setAlpha(1f);
         }
+
+        camera2SessionCurrent.destroy(false);
+        camera2SessionCurrent = null;
+        camera2Sessions[1] = null;
+
+        int roundSize = NitrogramConfig.getCustomRoundVideoSize();
+        camera2SessionCurrent = camera2Sessions[1] = Camera2Session.create(false, roundSize, roundSize, targetCameraId);
+        if (camera2SessionCurrent == null) {
+            camera2SessionCurrent = camera2Sessions[1] = Camera2Session.create(false, roundSize, roundSize, Camera2Session.getMainCameraId());
+        }
+        if (camera2SessionCurrent == null) return;
+        camera2SessionCurrent.setRecordingVideo(true);
+        previewSize[0] = new Size(camera2SessionCurrent.getPreviewWidth(), camera2SessionCurrent.getPreviewHeight());
+        cameraThread.setCurrentSession(camera2SessionCurrent);
+        cameraReady = false;
+        cameraThread.reinitForNewCamera();
     }
 
     public void setButtonsBackground(BlurredBackgroundDrawableViewFactory factory, BlurredBackgroundColorProvider colorProvider) {
@@ -703,6 +741,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         super.setVisibility(visibility);
 
         buttonsLayout.setAlpha(0.0f);
+        if (zoomControlView != null) {
+            zoomControlView.setAlpha(0.0f);
+        }
         cameraContainer.setAlpha(0.0f);
         textureOverlayView.setAlpha(0.0f);
         muteImageView.setAlpha(0.0f);
@@ -948,6 +989,12 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             cameraContainer.setTranslationX(0);
             textureOverlayView.setTranslationX(0);
 
+            if (zoomControlView != null) {
+                boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
+                zoomControlView.setZoom(hasUltraWide ? 0.25f : 0.0f, false);
+                zoomControlView.setCustomZoomText("1x");
+            }
+
             animationTranslationY = fromPaused ? 0 : getMeasuredHeight() / 2f;
             updateTranslationY();
         }
@@ -967,6 +1014,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         });
         animatorSet.playTogether(
                 ObjectAnimator.ofFloat(buttonsLayout, View.ALPHA, open ? 1.0f : 0.0f),
+                ObjectAnimator.ofFloat(zoomControlView, View.ALPHA, open ? 1.0f : 0.0f),
+                ObjectAnimator.ofFloat(zoomControlView, View.SCALE_X, open ? 1.0f : 0.7f),
+                ObjectAnimator.ofFloat(zoomControlView, View.SCALE_Y, open ? 1.0f : 0.7f),
                 ObjectAnimator.ofFloat(muteImageView, View.ALPHA, 0.0f),
                 ObjectAnimator.ofInt(paint, AnimationProperties.PAINT_ALPHA, open ? 255 : 0),
                 ObjectAnimator.ofFloat(cameraContainer, View.ALPHA, open ? 1.0f : 0.0f),
@@ -1001,6 +1051,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
     private void updateTranslationY() {
         textureOverlayView.setTranslationY(animationTranslationY + panTranslationY);
         cameraContainer.setTranslationY(animationTranslationY + panTranslationY);
+        if (zoomControlView != null) {
+            zoomControlView.setTranslationY(animationTranslationY + panTranslationY);
+        }
     }
 
     public RectOld getCameraRect() {
@@ -1203,6 +1256,11 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
         }
         isFrontface = !isFrontface;
+        if (zoomControlView != null) {
+            boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
+            zoomControlView.setZoom(hasUltraWide ? 0.25f : 0.0f, false);
+            zoomControlView.setCustomZoomText("1x");
+        }
         updateFlash();
         if (useCamera2) {
             if (bothCameras) {
@@ -3871,12 +3929,32 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 if (camera2SessionCurrent != null) {
                     float zoom = Utilities.clamp(pinchScale, camera2SessionCurrent.getMaxZoom(), camera2SessionCurrent.getMinZoom());
                     camera2SessionCurrent.setZoom(zoom);
-                    updateZoomButtons(zoom);
+                    if (zoomControlView != null) {
+                        boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
+                        float prog;
+                        if (hasUltraWide) {
+                            if (zoom <= 1.0f) {
+                                prog = Math.max(0f, (zoom - 0.6f) / 0.4f) * 0.25f;
+                            } else if (zoom <= 2.0f) {
+                                prog = 0.25f + ((zoom - 1.0f) / 1.0f) * 0.375f;
+                            } else {
+                                prog = 0.625f + ((zoom - 2.0f) / 1.5f) * 0.375f;
+                            }
+                        } else {
+                            prog = (zoom - 1.0f) / 2.5f;
+                        }
+                        String zoomStr = Math.abs(zoom - 0.6f) < 0.05f ? "0.6x" : (Math.abs(zoom - Math.round(zoom)) < 0.05f ? ((int) Math.round(zoom) + "x") : String.format(java.util.Locale.US, "%.1fx", zoom));
+                        zoomControlView.setZoom(Utilities.clamp(prog, 1f, 0f), false);
+                        zoomControlView.setCustomZoomText(zoomStr);
+                    }
                 }
             } else {
                 float zoom = Math.min(1f, Math.max(0, pinchScale - 1f));
                 cameraSession.setZoom(zoom);
-                updateZoomButtons(pinchScale);
+                if (zoomControlView != null) {
+                    zoomControlView.setZoom(zoom, false);
+                    zoomControlView.setCustomZoomText(String.format(java.util.Locale.US, "%.1fx", 1f + zoom * 2.5f));
+                }
             }
         } else if ((ev.getActionMasked() == MotionEvent.ACTION_UP || (ev.getActionMasked() == MotionEvent.ACTION_POINTER_UP && checkPointerIds(ev)) || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) && isInPinchToZoomTouchMode) {
             isInPinchToZoomTouchMode = false;

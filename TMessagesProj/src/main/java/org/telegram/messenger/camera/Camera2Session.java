@@ -85,6 +85,10 @@ public class Camera2Session {
     private long lastTime;
 
     public static Camera2Session create(boolean front, int viewWidth, int viewHeight) {
+        return create(front, viewWidth, viewHeight, null);
+    }
+
+    public static Camera2Session create(boolean front, int viewWidth, int viewHeight, String targetCameraId) {
         final Context context = ApplicationLoader.applicationContext;
         final CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
 
@@ -92,12 +96,12 @@ public class Camera2Session {
         Size bestSize = null;
         String cameraId = null;
         try {
-            String[] cameraIds = cameraManager.getCameraIdList();
+            String[] cameraIds = targetCameraId != null ? new String[]{targetCameraId} : cameraManager.getCameraIdList();
             for (int i = 0; i < cameraIds.length; ++i) {
                 final String id = cameraIds[i];
                 CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
                 if (characteristics == null) continue;
-                if (characteristics.get(CameraCharacteristics.LENS_FACING) != (front ? CameraCharacteristics.LENS_FACING_FRONT : CameraCharacteristics.LENS_FACING_BACK)) {
+                if (targetCameraId == null && characteristics.get(CameraCharacteristics.LENS_FACING) != (front ? CameraCharacteristics.LENS_FACING_FRONT : CameraCharacteristics.LENS_FACING_BACK)) {
                     continue;
                 }
                 StreamConfigurationMap confMap = (StreamConfigurationMap) characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
@@ -115,8 +119,6 @@ public class Camera2Session {
                             bestSize = size;
                         }
                     }
-                } else {
-
                 }
             }
         } catch (Exception e) {
@@ -127,6 +129,100 @@ public class Camera2Session {
             return null;
         }
         return new Camera2Session(context, front, cameraId, bestSize);
+    }
+
+    public static String getUltraWideCameraId() {
+        try {
+            Context context = ApplicationLoader.applicationContext;
+            if (context == null) return null;
+            CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+            String[] ids = cm.getCameraIdList();
+            String bestUltraWideId = null;
+            float minFocal = Float.MAX_VALUE;
+            for (String id : ids) {
+                CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                    float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                    if (focals != null && focals.length > 0) {
+                        float focal = focals[0];
+                        if (focal > 0.5f && focal < 3.5f && focal < minFocal) {
+                            minFocal = focal;
+                            bestUltraWideId = id;
+                        }
+                    }
+                }
+            }
+            return bestUltraWideId;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return null;
+        }
+    }
+
+    public static String getTelephotoCameraId() {
+        try {
+            Context context = ApplicationLoader.applicationContext;
+            if (context == null) return null;
+            CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+            String[] ids = cm.getCameraIdList();
+            String bestTeleId = null;
+            float maxFocal = 0;
+            for (String id : ids) {
+                CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                    float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                    if (focals != null && focals.length > 0) {
+                        float focal = focals[0];
+                        if (focal > 10.0f && focal > maxFocal) {
+                            maxFocal = focal;
+                            bestTeleId = id;
+                        }
+                    }
+                }
+            }
+            return bestTeleId;
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return null;
+        }
+    }
+
+    public static String getMainCameraId() {
+        try {
+            Context context = ApplicationLoader.applicationContext;
+            if (context == null) return "0";
+            CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+            String[] ids = cm.getCameraIdList();
+            for (String id : ids) {
+                CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                    float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                    if (focals != null && focals.length > 0) {
+                        float focal = focals[0];
+                        if (focal >= 3.5f && focal <= 10.0f) {
+                            return id;
+                        }
+                    }
+                }
+            }
+            return "0";
+        } catch (Throwable e) {
+            FileLog.e(e);
+            return "0";
+        }
+    }
+
+    public boolean isUltraWide() {
+        String uwId = getUltraWideCameraId();
+        return uwId != null && uwId.equals(cameraId);
+    }
+
+    public boolean isTelephoto() {
+        String teleId = getTelephotoCameraId();
+        return teleId != null && teleId.equals(cameraId);
     }
 
     private Camera2Session(Context context, boolean isFront, String cameraId, Size size) {

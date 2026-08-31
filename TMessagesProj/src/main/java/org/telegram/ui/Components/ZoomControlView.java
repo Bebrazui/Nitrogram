@@ -44,6 +44,11 @@ public class ZoomControlView extends View {
     private float animatingToZoom;
     private AnimatorSet animatorSet;
 
+    private String customZoomText;
+    private android.graphics.Paint zoomTextPaint;
+    private android.graphics.Paint zoomTextBgPaint;
+    private android.graphics.RectF zoomTextBg;
+
     private ZoomControlViewDelegate delegate;
 
     public boolean enabledTouch = true;
@@ -77,6 +82,24 @@ public class ZoomControlView extends View {
         filledProgressDrawable = context.getResources().getDrawable(R.drawable.zoom_slide_a);
         knobDrawable = context.getResources().getDrawable(R.drawable.zoom_round);
         pressedKnobDrawable = context.getResources().getDrawable(R.drawable.zoom_round_b);
+
+        zoomTextPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        zoomTextPaint.setColor(0xffffffff);
+        zoomTextPaint.setTextSize(AndroidUtilities.dp(11.5f));
+        zoomTextPaint.setTextAlign(android.graphics.Paint.Align.CENTER);
+        zoomTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        zoomTextPaint.setFakeBoldText(true);
+
+        zoomTextBgPaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        zoomTextBgPaint.setColor(0xb0141820);
+        zoomTextBgPaint.setStyle(android.graphics.Paint.Style.FILL);
+
+        zoomTextBg = new android.graphics.RectF();
+    }
+
+    public void setCustomZoomText(String text) {
+        customZoomText = text;
+        invalidate();
     }
 
     public float getZoom() {
@@ -284,5 +307,18 @@ public class ZoomControlView extends View {
         int size = drawable.getIntrinsicWidth();
         drawable.setBounds(knobX - size / 2, knobY - size / 2, knobX + size / 2, knobY + size / 2);
         drawable.draw(canvas);
+
+        if (customZoomText != null) {
+            float tw = zoomTextPaint.measureText(customZoomText);
+            float bw = Math.max(AndroidUtilities.dp(36), tw + AndroidUtilities.dp(12));
+            float bh = AndroidUtilities.dp(20);
+            float bx = knobX - bw / 2f;
+            float by = knobY - AndroidUtilities.dp(24);
+            zoomTextBg.set(bx, by - bh / 2f, bx + bw, by + bh / 2f);
+            canvas.drawRoundRect(zoomTextBg, AndroidUtilities.dp(10), AndroidUtilities.dp(10), zoomTextBgPaint);
+            android.graphics.Paint.FontMetrics fm = zoomTextPaint.getFontMetrics();
+            float ty = by - (fm.ascent + fm.descent) / 2f;
+            canvas.drawText(customZoomText, knobX, ty, zoomTextPaint);
+        }
     }
 }
