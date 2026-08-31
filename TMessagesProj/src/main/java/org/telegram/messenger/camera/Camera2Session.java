@@ -131,27 +131,68 @@ public class Camera2Session {
         return new Camera2Session(context, front, cameraId, bestSize);
     }
 
+    public static java.util.List<String> getAllCameraIds(CameraManager cm) {
+        java.util.List<String> list = new java.util.ArrayList<>();
+        try {
+            String[] ids = cm.getCameraIdList();
+            if (ids != null) {
+                for (String id : ids) {
+                    if (!list.contains(id)) list.add(id);
+                }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && ids != null) {
+                for (String id : ids) {
+                    try {
+                        CameraCharacteristics cc = cm.getCameraCharacteristics(id);
+                        java.util.Set<String> physicalIds = cc.getPhysicalCameraIds();
+                        if (physicalIds != null) {
+                            for (String pid : physicalIds) {
+                                if (!list.contains(pid)) list.add(pid);
+                            }
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+            for (int i = 0; i <= 9; i++) {
+                String testId = String.valueOf(i);
+                if (!list.contains(testId)) {
+                    try {
+                        CameraCharacteristics cc = cm.getCameraCharacteristics(testId);
+                        if (cc != null) {
+                            list.add(testId);
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+        } catch (Throwable e) {
+            FileLog.e(e);
+        }
+        return list;
+    }
+
     public static String getUltraWideCameraId() {
         try {
             Context context = ApplicationLoader.applicationContext;
             if (context == null) return null;
             CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
-            String[] ids = cm.getCameraIdList();
+            java.util.List<String> ids = getAllCameraIds(cm);
             String bestUltraWideId = null;
             float minFocal = Float.MAX_VALUE;
             for (String id : ids) {
-                CameraCharacteristics c = cm.getCameraCharacteristics(id);
-                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
-                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
-                    float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
-                    if (focals != null && focals.length > 0) {
-                        float focal = focals[0];
-                        if (focal > 0.5f && focal < 3.5f && focal < minFocal) {
-                            minFocal = focal;
-                            bestUltraWideId = id;
+                try {
+                    CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                    Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                    if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                        float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                        if (focals != null && focals.length > 0) {
+                            float focal = focals[0];
+                            if (focal > 0.5f && focal < 3.5f && focal < minFocal) {
+                                minFocal = focal;
+                                bestUltraWideId = id;
+                            }
                         }
                     }
-                }
+                } catch (Throwable ignored) {}
             }
             return bestUltraWideId;
         } catch (Throwable e) {
@@ -160,27 +201,47 @@ public class Camera2Session {
         }
     }
 
+    public static boolean hasUltraWide(boolean isFront) {
+        if (isFront) return false;
+        if (getUltraWideCameraId() != null) return true;
+        try {
+            Context context = ApplicationLoader.applicationContext;
+            if (context == null) return false;
+            CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics c = cm.getCameraCharacteristics(getMainCameraId());
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.util.Range<Float> range = c.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+                if (range != null && range.getLower() <= 0.7f) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
     public static String getTelephotoCameraId() {
         try {
             Context context = ApplicationLoader.applicationContext;
             if (context == null) return null;
             CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
-            String[] ids = cm.getCameraIdList();
+            java.util.List<String> ids = getAllCameraIds(cm);
             String bestTeleId = null;
             float maxFocal = 0;
             for (String id : ids) {
-                CameraCharacteristics c = cm.getCameraCharacteristics(id);
-                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
-                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
-                    float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
-                    if (focals != null && focals.length > 0) {
-                        float focal = focals[0];
-                        if (focal > 10.0f && focal > maxFocal) {
-                            maxFocal = focal;
-                            bestTeleId = id;
+                try {
+                    CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                    Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                    if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                        float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                        if (focals != null && focals.length > 0) {
+                            float focal = focals[0];
+                            if (focal > 10.0f && focal > maxFocal) {
+                                maxFocal = focal;
+                                bestTeleId = id;
+                            }
                         }
                     }
-                }
+                } catch (Throwable ignored) {}
             }
             return bestTeleId;
         } catch (Throwable e) {
@@ -194,19 +255,21 @@ public class Camera2Session {
             Context context = ApplicationLoader.applicationContext;
             if (context == null) return "0";
             CameraManager cm = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
-            String[] ids = cm.getCameraIdList();
+            java.util.List<String> ids = getAllCameraIds(cm);
             for (String id : ids) {
-                CameraCharacteristics c = cm.getCameraCharacteristics(id);
-                Integer facing = c.get(CameraCharacteristics.LENS_FACING);
-                if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
-                    float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
-                    if (focals != null && focals.length > 0) {
-                        float focal = focals[0];
-                        if (focal >= 3.5f && focal <= 10.0f) {
-                            return id;
+                try {
+                    CameraCharacteristics c = cm.getCameraCharacteristics(id);
+                    Integer facing = c.get(CameraCharacteristics.LENS_FACING);
+                    if (facing != null && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                        float[] focals = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                        if (focals != null && focals.length > 0) {
+                            float focal = focals[0];
+                            if (focal >= 3.5f && focal <= 10.0f) {
+                                return id;
+                            }
                         }
                     }
-                }
+                } catch (Throwable ignored) {}
             }
             return "0";
         } catch (Throwable e) {

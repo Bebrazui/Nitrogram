@@ -263,7 +263,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
     private final LinearLayout buttonsLayout;
     private final int buttonsSizePx;
-    private final ZoomControlView zoomControlView;
+    private final CameraZoomPillView zoomPillView;
 
 
     @SuppressLint("ClickableViewAccessibility")
@@ -435,34 +435,13 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         setVisibilityFromPause = false;
         setVisibility(INVISIBLE);
 
-        zoomControlView = new ZoomControlView(context);
-        LayoutParams zoomLp = new LayoutParams(dp(260), dp(50), Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL);
-        zoomLp.topMargin = AndroidUtilities.roundPlayingMessageSize / 2 + dp(32);
-        addView(zoomControlView, zoomLp);
-        zoomControlView.setDelegate(this::applyZoomAndLens);
+        zoomPillView = new CameraZoomPillView(context);
+        addView(zoomPillView, LayoutHelper.createFrame(160, 38, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, 0, 0, 16));
+        zoomPillView.setDelegate(this::applyZoomAndLens);
     }
 
-    public void applyZoomAndLens(float progress) {
+    public void applyZoomAndLens(float zoom) {
         if (!cameraReady) return;
-
-        boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
-        float zoom;
-        if (hasUltraWide) {
-            if (progress <= 0.25f) {
-                zoom = 0.6f + (progress / 0.25f) * 0.4f;
-            } else if (progress <= 0.625f) {
-                zoom = 1.0f + ((progress - 0.25f) / 0.375f) * 1.0f;
-            } else {
-                zoom = 2.0f + ((progress - 0.625f) / 0.375f) * 1.5f;
-            }
-        } else {
-            zoom = 1.0f + progress * 2.5f;
-        }
-
-        String zoomStr = Math.abs(zoom - 0.6f) < 0.05f ? "0.6x" : (Math.abs(zoom - Math.round(zoom)) < 0.05f ? ((int) Math.round(zoom) + "x") : String.format(java.util.Locale.US, "%.1fx", zoom));
-        if (zoomControlView != null) {
-            zoomControlView.setCustomZoomText(zoomStr);
-        }
 
         if (useCamera2) {
             if (isFrontface) {
@@ -741,8 +720,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         super.setVisibility(visibility);
 
         buttonsLayout.setAlpha(0.0f);
-        if (zoomControlView != null) {
-            zoomControlView.setAlpha(0.0f);
+        if (zoomPillView != null) {
+            zoomPillView.setAlpha(0.0f);
         }
         cameraContainer.setAlpha(0.0f);
         textureOverlayView.setAlpha(0.0f);
@@ -989,10 +968,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             cameraContainer.setTranslationX(0);
             textureOverlayView.setTranslationX(0);
 
-            if (zoomControlView != null) {
-                boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
-                zoomControlView.setZoom(hasUltraWide ? 0.25f : 0.0f, false);
-                zoomControlView.setCustomZoomText("1x");
+            if (zoomPillView != null) {
+                zoomPillView.updateLevels();
+                zoomPillView.setZoom(1.0f, false);
             }
 
             animationTranslationY = fromPaused ? 0 : getMeasuredHeight() / 2f;
@@ -1014,9 +992,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         });
         animatorSet.playTogether(
                 ObjectAnimator.ofFloat(buttonsLayout, View.ALPHA, open ? 1.0f : 0.0f),
-                ObjectAnimator.ofFloat(zoomControlView, View.ALPHA, open ? 1.0f : 0.0f),
-                ObjectAnimator.ofFloat(zoomControlView, View.SCALE_X, open ? 1.0f : 0.7f),
-                ObjectAnimator.ofFloat(zoomControlView, View.SCALE_Y, open ? 1.0f : 0.7f),
+                ObjectAnimator.ofFloat(zoomPillView, View.ALPHA, open ? 1.0f : 0.0f),
+                ObjectAnimator.ofFloat(zoomPillView, View.SCALE_X, open ? 1.0f : 0.8f),
+                ObjectAnimator.ofFloat(zoomPillView, View.SCALE_Y, open ? 1.0f : 0.8f),
                 ObjectAnimator.ofFloat(muteImageView, View.ALPHA, 0.0f),
                 ObjectAnimator.ofInt(paint, AnimationProperties.PAINT_ALPHA, open ? 255 : 0),
                 ObjectAnimator.ofFloat(cameraContainer, View.ALPHA, open ? 1.0f : 0.0f),
@@ -1051,9 +1029,6 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
     private void updateTranslationY() {
         textureOverlayView.setTranslationY(animationTranslationY + panTranslationY);
         cameraContainer.setTranslationY(animationTranslationY + panTranslationY);
-        if (zoomControlView != null) {
-            zoomControlView.setTranslationY(animationTranslationY + panTranslationY);
-        }
     }
 
     public RectOld getCameraRect() {
@@ -1256,10 +1231,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
         }
         isFrontface = !isFrontface;
-        if (zoomControlView != null) {
-            boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
-            zoomControlView.setZoom(hasUltraWide ? 0.25f : 0.0f, false);
-            zoomControlView.setCustomZoomText("1x");
+        if (zoomPillView != null) {
+            zoomPillView.setIsFront(isFrontface);
+            zoomPillView.setZoom(1.0f, false);
         }
         updateFlash();
         if (useCamera2) {
@@ -3929,31 +3903,15 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 if (camera2SessionCurrent != null) {
                     float zoom = Utilities.clamp(pinchScale, camera2SessionCurrent.getMaxZoom(), camera2SessionCurrent.getMinZoom());
                     camera2SessionCurrent.setZoom(zoom);
-                    if (zoomControlView != null) {
-                        boolean hasUltraWide = !isFrontface && Camera2Session.getUltraWideCameraId() != null;
-                        float prog;
-                        if (hasUltraWide) {
-                            if (zoom <= 1.0f) {
-                                prog = Math.max(0f, (zoom - 0.6f) / 0.4f) * 0.25f;
-                            } else if (zoom <= 2.0f) {
-                                prog = 0.25f + ((zoom - 1.0f) / 1.0f) * 0.375f;
-                            } else {
-                                prog = 0.625f + ((zoom - 2.0f) / 1.5f) * 0.375f;
-                            }
-                        } else {
-                            prog = (zoom - 1.0f) / 2.5f;
-                        }
-                        String zoomStr = Math.abs(zoom - 0.6f) < 0.05f ? "0.6x" : (Math.abs(zoom - Math.round(zoom)) < 0.05f ? ((int) Math.round(zoom) + "x") : String.format(java.util.Locale.US, "%.1fx", zoom));
-                        zoomControlView.setZoom(Utilities.clamp(prog, 1f, 0f), false);
-                        zoomControlView.setCustomZoomText(zoomStr);
+                    if (zoomPillView != null) {
+                        zoomPillView.setZoom(zoom, false);
                     }
                 }
             } else {
                 float zoom = Math.min(1f, Math.max(0, pinchScale - 1f));
                 cameraSession.setZoom(zoom);
-                if (zoomControlView != null) {
-                    zoomControlView.setZoom(zoom, false);
-                    zoomControlView.setCustomZoomText(String.format(java.util.Locale.US, "%.1fx", 1f + zoom * 2.5f));
+                if (zoomPillView != null) {
+                    zoomPillView.setZoom(pinchScale, false);
                 }
             }
         } else if ((ev.getActionMasked() == MotionEvent.ACTION_UP || (ev.getActionMasked() == MotionEvent.ACTION_POINTER_UP && checkPointerIds(ev)) || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) && isInPinchToZoomTouchMode) {
