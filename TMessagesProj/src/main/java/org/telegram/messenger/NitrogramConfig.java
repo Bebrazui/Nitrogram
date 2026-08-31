@@ -1442,4 +1442,86 @@ public final class NitrogramConfig {
     public static void setDisableUnarchiveSwipeEnabled(boolean value) {
         prefs().edit().putBoolean(KEY_DISABLE_UNARCHIVE_SWIPE, value).apply();
     }
+
+    // Camera & Round Video options
+    private static final String KEY_CAMERA_STABILIZATION = "camera_stabilization";
+    private static final String KEY_CAMERA_ULTRAWIDE = "camera_ultrawide";
+    private static final String KEY_ROUND_VIDEO_QUALITY = "round_video_quality";
+    private static final String KEY_ROUND_VIDEO_KEEP_ZOOM = "round_video_keep_zoom";
+    private static final String KEY_ROUND_VIDEO_60FPS = "round_video_60fps";
+
+    public static final int ROUND_QUALITY_STANDARD_384 = 0;
+    public static final int ROUND_QUALITY_HIGH_512 = 1;
+    public static final int ROUND_QUALITY_ULTRA_720 = 2;
+
+    public static boolean isCameraStabilizationEnabled() {
+        return prefs().getBoolean(KEY_CAMERA_STABILIZATION, true);
+    }
+    public static void setCameraStabilizationEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_CAMERA_STABILIZATION, value).apply();
+    }
+
+    public static boolean isUltraWideCameraEnabled() {
+        return prefs().getBoolean(KEY_CAMERA_ULTRAWIDE, true);
+    }
+    public static void setUltraWideCameraEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_CAMERA_ULTRAWIDE, value).apply();
+    }
+
+    public static int getRoundVideoQuality() {
+        return prefs().getInt(KEY_ROUND_VIDEO_QUALITY, ROUND_QUALITY_HIGH_512);
+    }
+    public static void setRoundVideoQuality(int quality) {
+        prefs().edit().putInt(KEY_ROUND_VIDEO_QUALITY, quality).apply();
+    }
+
+    public static boolean isRoundVideoKeepZoomEnabled() {
+        return prefs().getBoolean(KEY_ROUND_VIDEO_KEEP_ZOOM, true);
+    }
+    public static void setRoundVideoKeepZoomEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_ROUND_VIDEO_KEEP_ZOOM, value).apply();
+    }
+
+    public static boolean isRoundVideo60FpsEnabled() {
+        return prefs().getBoolean(KEY_ROUND_VIDEO_60FPS, true);
+    }
+    public static void setRoundVideo60FpsEnabled(boolean value) {
+        prefs().edit().putBoolean(KEY_ROUND_VIDEO_60FPS, value).apply();
+    }
+
+    public static int getCustomRoundVideoSize() {
+        switch (getRoundVideoQuality()) {
+            case ROUND_QUALITY_ULTRA_720:
+                return 720;
+            case ROUND_QUALITY_HIGH_512:
+                return 512;
+            case ROUND_QUALITY_STANDARD_384:
+            default:
+                return 384;
+        }
+    }
+
+    public static int getCustomRoundVideoBitrate() {
+        switch (getRoundVideoQuality()) {
+            case ROUND_QUALITY_ULTRA_720:
+                return 3500;
+            case ROUND_QUALITY_HIGH_512:
+                return 2500;
+            case ROUND_QUALITY_STANDARD_384:
+            default:
+                return 1000;
+        }
+    }
+
+    public static String getRoundVideoQualityName(int quality) {
+        switch (quality) {
+            case ROUND_QUALITY_ULTRA_720:
+                return "Ultra HD (720p)";
+            case ROUND_QUALITY_HIGH_512:
+                return "Высокое (512p)";
+            case ROUND_QUALITY_STANDARD_384:
+            default:
+                return "Стандартное (384p)";
+        }
+    }
 }

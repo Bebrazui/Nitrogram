@@ -157,6 +157,13 @@ public class ModCategoryActivity extends BaseFragment {
                 items.add(new Item(37, 1, "Модулятор голоса (Voice Changer)", VoiceChanger.getEffectName(VoiceChanger.getEffect()), false, false));
                 items.add(new Item(38, 1, "Ускорение отправки и скачивания", NitrogramConfig.getSpeedBoosterName(NitrogramConfig.getSpeedBoosterMode()), false, false));
                 items.add(new Item(301, 3, "Управление чатами, приватностью, скрытием рекламы, эффектами голоса и ускорением передачи файлов."));
+
+                items.add(new Item(310, 2, "Камера и видеосообщения"));
+                items.add(new Item(44, 0, "Стабилизация видео (OIS / EIS)", null, NitrogramConfig.isCameraStabilizationEnabled(), true));
+                items.add(new Item(45, 1, "Качество кружочков", NitrogramConfig.getRoundVideoQualityName(NitrogramConfig.getRoundVideoQuality()), false, true));
+                items.add(new Item(46, 0, "Сохранять зум при записи", null, NitrogramConfig.isRoundVideoKeepZoomEnabled(), true));
+                items.add(new Item(47, 0, "Поддержка 60 FPS", null, NitrogramConfig.isRoundVideo60FpsEnabled(), false));
+                items.add(new Item(311, 3, "Оптическая и электронная стабилизация уменьшают тряску. Качество кружочков увеличивает разрешение до 512p/720p и битрейт. В камере кружочков доступны кнопки 0.6x, 1x, 2x."));
                 break;
 
             case CATEGORY_PLUGINS:
@@ -431,6 +438,32 @@ public class ModCategoryActivity extends BaseFragment {
                 if (adapter != null) adapter.notifyDataSetChanged();
             });
             showDialog(builder.create());
+        } else if (item.id == 44) {
+            boolean v = !NitrogramConfig.isCameraStabilizationEnabled();
+            NitrogramConfig.setCameraStabilizationEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 45) {
+            final String[] qualities = new String[] {
+                NitrogramConfig.getRoundVideoQualityName(NitrogramConfig.ROUND_QUALITY_STANDARD_384),
+                NitrogramConfig.getRoundVideoQualityName(NitrogramConfig.ROUND_QUALITY_HIGH_512),
+                NitrogramConfig.getRoundVideoQualityName(NitrogramConfig.ROUND_QUALITY_ULTRA_720)
+            };
+            AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+            builder.setTitle("Качество видеосообщений");
+            builder.setItems(qualities, (dialog, which) -> {
+                NitrogramConfig.setRoundVideoQuality(which);
+                buildItems();
+                if (adapter != null) adapter.notifyDataSetChanged();
+            });
+            showDialog(builder.create());
+        } else if (item.id == 46) {
+            boolean v = !NitrogramConfig.isRoundVideoKeepZoomEnabled();
+            NitrogramConfig.setRoundVideoKeepZoomEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
+        } else if (item.id == 47) {
+            boolean v = !NitrogramConfig.isRoundVideo60FpsEnabled();
+            NitrogramConfig.setRoundVideo60FpsEnabled(v);
+            if (view instanceof TextCheckCell) ((TextCheckCell) view).setChecked(v);
         } else if (item.id == 41) {
             presentFragment(new WsProxySettingsActivity());
         } else if (item.id == 42) {

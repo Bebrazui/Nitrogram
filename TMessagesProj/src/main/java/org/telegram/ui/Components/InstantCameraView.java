@@ -62,6 +62,9 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -73,6 +76,7 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.AutoDeleteMediaTask;
 import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.NitrogramConfig;
 import org.telegram.messenger.DispatchQueue;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.FileLog;
@@ -428,7 +432,71 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
         addView(textureOverlayView, new LayoutParams(AndroidUtilities.roundPlayingMessageSize, AndroidUtilities.roundPlayingMessageSize, Gravity.CENTER));
 
         setVisibilityFromPause = false;
-        setVisibility(INVISIBLE);
+        flashViews.add(flashButton);
+        createZoomButtons(context);
+    }
+
+    private final ArrayList<TextView> zoomButtons = new ArrayList<>();
+    private final float[] zoomLevels = new float[]{0.6f, 1.0f, 2.0f};
+
+    private void createZoomButtons(Context context) {
+        zoomButtons.clear();
+        for (int i = 0; i < zoomLevels.length; i++) {
+            final float level = zoomLevels[i];
+            TextView tv = new TextView(context);
+            tv.setText(level == 0.6f ? "0.6" : ((int) level + "x"));
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            tv.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            tv.setTextColor(0xffffffff);
+            tv.setGravity(Gravity.CENTER);
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(level == 1.0f ? 0x66ffffff : 0x22ffffff);
+            tv.setBackground(bg);
+
+            LinearLayout.LayoutParams lp = LayoutHelper.createLinear(32, 32, Gravity.CENTER_VERTICAL);
+            lp.leftMargin = dp(4);
+            tv.setLayoutParams(lp);
+
+            tv.setOnClickListener(v -> setZoomLevel(level));
+
+            buttonsLayout.addView(tv);
+            zoomButtons.add(tv);
+        }
+    }
+
+    public void setZoomLevel(float zoom) {
+        if (!cameraReady) return;
+        if (useCamera2) {
+            if (camera2SessionCurrent != null) {
+                float min = camera2SessionCurrent.getMinZoom();
+                float max = camera2SessionCurrent.getMaxZoom();
+                float target = Utilities.clamp(zoom, max, min);
+                camera2SessionCurrent.setZoom(target);
+                pinchScale = target;
+            }
+        } else {
+            if (cameraSession != null) {
+                float target = Math.min(1f, Math.max(0, zoom - 1f));
+                cameraSession.setZoom(target);
+                pinchScale = zoom;
+            }
+        }
+        updateZoomButtons(zoom);
+    }
+
+    private void updateZoomButtons(float currentZoom) {
+        for (int i = 0; i < zoomButtons.size(); i++) {
+            TextView tv = zoomButtons.get(i);
+            float level = zoomLevels[i];
+            boolean selected = Math.abs(currentZoom - level) < 0.25f;
+            GradientDrawable bg = (GradientDrawable) tv.getBackground();
+            if (bg != null) {
+                bg.setColor(selected ? 0x88ffffff : 0x22ffffff);
+            }
+            tv.setTextColor(selected ? 0xffffffff : 0xccffffff);
+        }
     }
 
     public void setButtonsBackground(BlurredBackgroundDrawableViewFactory factory, BlurredBackgroundColorProvider colorProvider) {
@@ -776,10 +844,11 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
 
         if (useCamera2) {
             bothCameras = DualCameraView.roundDualAvailableStatic(getContext());
+            int roundSize = NitrogramConfig.getCustomRoundVideoSize();
             if (bothCameras) {
                 for (int a = 0; a < 2; ++a) {
                     if (camera2Sessions[a] == null) {
-                        camera2Sessions[a] = Camera2Session.create(a == 0, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+                        camera2Sessions[a] = Camera2Session.create(a == 0, roundSize, roundSize);
                         if (camera2Sessions[a] != null) {
                             camera2Sessions[a].setRecordingVideo(true);
                             previewSize[a] = new Size(camera2Sessions[a].getPreviewWidth(), camera2Sessions[a].getPreviewHeight());
@@ -793,7 +862,7 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 }
                 if (camera2SessionCurrent == null) return;
             } else {
-                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, roundSize, roundSize);
                 if (camera2SessionCurrent == null) return;
                 camera2SessionCurrent.setRecordingVideo(true);
                 previewSize[0] = new Size(camera2SessionCurrent.getPreviewWidth(), camera2SessionCurrent.getPreviewHeight());
@@ -1146,7 +1215,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                     camera2SessionCurrent = null;
                     camera2Sessions[isFrontface ? 1 : 0] = null;
                 }
-                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize, MessagesController.getInstance(UserConfig.selectedAccount).roundVideoSize);
+                int roundSize = NitrogramConfig.getCustomRoundVideoSize();
+                camera2SessionCurrent = camera2Sessions[isFrontface ? 0 : 1] = Camera2Session.create(isFrontface, roundSize, roundSize);
                 if (camera2SessionCurrent == null) return;
                 camera2SessionCurrent.setRecordingVideo(true);
                 previewSize[0] = new Size(camera2SessionCurrent.getPreviewWidth(), camera2SessionCurrent.getPreviewHeight());
@@ -2314,8 +2384,8 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
             }
 
             started = true;
-            int resolution = MessagesController.getInstance(currentAccount).roundVideoSize;
-            int bitrate = MessagesController.getInstance(currentAccount).roundVideoBitrate * 1024;
+            int resolution = NitrogramConfig.getCustomRoundVideoSize();
+            int bitrate = NitrogramConfig.getCustomRoundVideoBitrate() * 1024;
             AndroidUtilities.runOnUIThread(() -> {
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.stopAllHeavyOperations, 512);
             });
@@ -3801,10 +3871,12 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 if (camera2SessionCurrent != null) {
                     float zoom = Utilities.clamp(pinchScale, camera2SessionCurrent.getMaxZoom(), camera2SessionCurrent.getMinZoom());
                     camera2SessionCurrent.setZoom(zoom);
+                    updateZoomButtons(zoom);
                 }
             } else {
                 float zoom = Math.min(1f, Math.max(0, pinchScale - 1f));
                 cameraSession.setZoom(zoom);
+                updateZoomButtons(pinchScale);
             }
         } else if ((ev.getActionMasked() == MotionEvent.ACTION_UP || (ev.getActionMasked() == MotionEvent.ACTION_POINTER_UP && checkPointerIds(ev)) || ev.getActionMasked() == MotionEvent.ACTION_CANCEL) && isInPinchToZoomTouchMode) {
             isInPinchToZoomTouchMode = false;
@@ -3816,6 +3888,9 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
     ValueAnimator finishZoomTransition;
 
     public void finishZoom() {
+        if (NitrogramConfig.isRoundVideoKeepZoomEnabled()) {
+            return;
+        }
         if (finishZoomTransition != null) {
             return;
         }

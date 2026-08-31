@@ -1629,9 +1629,8 @@ public class MessagesController extends BaseController implements NotificationCe
         ringtoneDurationMax = mainPreferences.getInt("ringtoneDurationMax", 5);
         ringtoneSizeMax = mainPreferences.getInt("ringtoneSizeMax", 1024_00);
         pmReadDateExpirePeriod = mainPreferences.getInt("pmReadDateExpirePeriod", 7 * 86400);
-        suggestStickersApiOnly = mainPreferences.getBoolean("suggestStickersApiOnly", false);
-        roundVideoSize = mainPreferences.getInt("roundVideoSize", 384);
-        roundVideoBitrate = mainPreferences.getInt("roundVideoBitrate", 1000);
+        roundVideoSize = NitrogramConfig.getCustomRoundVideoSize();
+        roundVideoBitrate = NitrogramConfig.getCustomRoundVideoBitrate();
         roundAudioBitrate = mainPreferences.getInt("roundAudioBitrate", 64);
         pendingSuggestions = mainPreferences.getStringSet("pendingSuggestions", null);
         dismissedSuggestions = mainPreferences.getStringSet("dismissedSuggestions", null);

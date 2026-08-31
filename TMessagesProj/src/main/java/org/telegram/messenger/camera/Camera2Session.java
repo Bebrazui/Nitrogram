@@ -72,7 +72,11 @@ public class Camera2Session {
     private CaptureRequest.Builder captureRequestBuilder;
     private Rect sensorSize;
     private float maxZoom = 1f;
+    private float minZoom = 1f;
     private float currentZoom = 1f;
+    private boolean zoomRatioSupported = false;
+    private boolean oisSupported = false;
+    private boolean eisSupported = false;
 
     private final Size previewSize;
 
@@ -194,8 +198,49 @@ public class Camera2Session {
         try {
             cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId);
             sensorSize = cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
-            final Float value = cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
-            maxZoom = (value == null || value < 1f) ? 1f : value;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    Range<Float> zoomRange = cameraCharacteristics.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE);
+                    if (zoomRange != null && zoomRange.getLower() != null && zoomRange.getUpper() != null) {
+                        minZoom = zoomRange.getLower();
+                        maxZoom = zoomRange.getUpper();
+                        zoomRatioSupported = true;
+                    }
+                } catch (Throwable ignore) {}
+            }
+            if (!zoomRatioSupported) {
+                final Float value = cameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+                maxZoom = (value == null || value < 1f) ? 1f : value;
+                minZoom = 1f;
+            }
+
+            // Check Optical Image Stabilization (OIS)
+            try {
+                int[] oisModes = cameraCharacteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION);
+                if (oisModes != null) {
+                    for (int m : oisModes) {
+                        if (m == CameraMetadata.LENS_OPTICAL_STABILIZATION_MODE_ON) {
+                            oisSupported = true;
+                            break;
+                        }
+                    }
+                }
+            } catch (Throwable ignore) {}
+
+            // Check Electronic Video Stabilization (EIS)
+            try {
+                int[] eisModes = cameraCharacteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES);
+                if (eisModes != null) {
+                    for (int m : eisModes) {
+                        if (m == CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_ON) {
+                            eisSupported = true;
+                            break;
+                        }
+                    }
+                }
+            } catch (Throwable ignore) {}
+
             cameraManager.openCamera(cameraId, cameraStateCallback, handler);
         } catch (Exception e) {
             FileLog.e(e);
@@ -343,9 +388,9 @@ public class Camera2Session {
     private final Rect cropRegion = new Rect();
     public void setZoom(float value) {
         if (!isInitiated()) return;
-        if (captureRequestBuilder == null || cameraDevice == null || sensorSize == null) return;
+        if (captureRequestBuilder == null || cameraDevice == null) return;
 
-        currentZoom = Utilities.clamp(value, maxZoom, 1f);
+        currentZoom = Utilities.clamp(value, maxZoom, minZoom);
         updateCaptureRequest();
 
         try {
@@ -375,8 +420,7 @@ public class Camera2Session {
     }
 
     public float getMinZoom() {
-        // TODO: support wide zoom camera switching
-        return 1f;
+        return minZoom;
     }
 
     public int getPreviewWidth() {
@@ -494,7 +538,26 @@ public class Camera2Session {
                 captureRequestBuilder.set(CaptureRequest.CONTROL_CAPTURE_INTENT, CaptureRequest.CONTROL_CAPTURE_INTENT_VIDEO_RECORD);
             }
 
-            if (sensorSize != null && Math.abs(currentZoom - 1f) >= 0.01f) {
+            // Optical Image Stabilization (OIS)
+            if (org.telegram.messenger.NitrogramConfig.isCameraStabilizationEnabled() && oisSupported) {
+                captureRequestBuilder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON);
+            }
+            // Electronic Video Stabilization (EIS)
+            if (org.telegram.messenger.NitrogramConfig.isCameraStabilizationEnabled() && eisSupported) {
+                captureRequestBuilder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON);
+            }
+
+            // High Quality image processing
+            try {
+                captureRequestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
+                captureRequestBuilder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
+                captureRequestBuilder.set(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY);
+            } catch (Throwable ignore) {}
+
+            // Zoom ratio (smooth ultra-wide to telephoto transition on Android 11+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && zoomRatioSupported) {
+                captureRequestBuilder.set(CaptureRequest.CONTROL_ZOOM_RATIO, currentZoom);
+            } else if (sensorSize != null && currentZoom > 1f) {
                 final int centerX = sensorSize.width() / 2;
                 final int centerY = sensorSize.height() / 2;
                 final int deltaX = (int) ((0.5f * sensorSize.width()) / currentZoom);
