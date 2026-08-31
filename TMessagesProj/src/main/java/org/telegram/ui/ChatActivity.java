@@ -1623,6 +1623,8 @@ public class ChatActivity extends BaseFragment implements
     private final static int change_colors = 27;
     private final static int tag_message = 28;
     private final static int boost_group = 29;
+    private final static int chat_capsule = 1984;
+    private final static int chat_capsules_list = 1985;
 
     private final static int bot_help = 30;
     private final static int bot_settings = 31;
@@ -3852,6 +3854,10 @@ public class ChatActivity extends BaseFragment implements
                             }
                         }
                     });
+                } else if (id == chat_capsule) {
+                    showDialog(new org.telegram.ui.Components.ChatCapsuleCreateAlert(ChatActivity.this, dialog_id));
+                } else if (id == chat_capsules_list) {
+                    presentFragment(new org.telegram.ui.ChatCapsulesListActivity(dialog_id));
                 } else if (id == share_contact) {
                     if (currentUser == null || getParentActivity() == null) {
                         return;
@@ -44079,6 +44085,8 @@ public class ChatActivity extends BaseFragment implements
                         headerItem.lazilyAddSubItem(delete_chat, R.drawable.msg_delete, LocaleController.getString(R.string.DeleteChatUser));
                     }
                 }
+                headerItem.lazilyAddSubItem(chat_capsule, R.drawable.msg_calendar, "Снимок чата");
+                headerItem.lazilyAddSubItem(chat_capsules_list, R.drawable.msg_archive, "Сохраненные снимки");
             }
         }
     }

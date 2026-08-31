@@ -81,8 +81,7 @@ public class CameraZoomPillView extends View {
     }
 
     public void updateLevels() {
-        hasUltraWide = !isFront && Camera2Session.hasUltraWide(isFront);
-        if (hasUltraWide) {
+        if (!isFront) {
             levels = new float[]{0.6f, 1.0f, 2.0f};
             labels = new String[]{"0.6", "1x", "2x"};
         } else {

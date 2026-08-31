@@ -455,12 +455,13 @@ public class InstantCameraView extends FrameLayout implements NotificationCenter
                 String teleId = Camera2Session.getTelephotoCameraId();
                 String mainId = Camera2Session.getMainCameraId();
 
-                if (zoom <= 0.8f && ultraWideId != null) {
-                    if (camera2SessionCurrent == null || !ultraWideId.equals(camera2SessionCurrent.cameraId)) {
-                        switchBackCameraTo(ultraWideId);
+                if (zoom <= 0.8f) {
+                    String targetId = ultraWideId != null ? ultraWideId : "4";
+                    if (camera2SessionCurrent == null || !targetId.equals(camera2SessionCurrent.cameraId)) {
+                        switchBackCameraTo(targetId);
                     }
                     if (camera2SessionCurrent != null) {
-                        camera2SessionCurrent.setZoom(1.0f);
+                        camera2SessionCurrent.setZoom(0.6f);
                     }
                 } else if (zoom >= 2.8f && teleId != null) {
                     if (camera2SessionCurrent == null || !teleId.equals(camera2SessionCurrent.cameraId)) {
